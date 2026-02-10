@@ -1,4 +1,5 @@
 import psutil
+import shlex
 from agents.base_agent import LIAAgent
 from core.logger import logger
 from core.os_layer import os_layer
@@ -9,17 +10,19 @@ class SysAgent(LIAAgent):
         super().__init__("SysAgent", ["Process management", "Service control", "Health monitoring", "Disk status"])
         
         self.register_tool("check_cpu", self.check_cpu, "Returns current CPU usage",
-            keywords=["cpu", "processor"])
+            keywords=["cpu", "processor", "load"])
         self.register_tool("check_ram", self.check_ram, "Returns current RAM usage",
             keywords=["ram", "memory usage", "memory"])
         self.register_tool("check_disk", self.check_disk, "Returns disk usage",
-            keywords=["disk", "storage", "space"])
+            keywords=["disk", "storage", "space", "partition"])
         self.register_tool("manage_service", self.manage_service, "Manage system services",
             keywords=["service", "systemctl", "restart", "start service", "stop service"])
         self.register_tool("system_health", self.system_health, "Full system health check",
             keywords=["health", "system status", "overview", "check system", "system info"])
         self.register_tool("list_processes", self.list_processes, "List top processes by resource usage",
             keywords=["process", "top", "running", "what's running", "task manager"])
+        self.register_tool("check_logs", self.check_logs, "Check system journals",
+            keywords=["logs", "journal", "error log", "syslog"])
 
     def check_cpu(self) -> str:
         usage = psutil.cpu_percent(interval=1)
@@ -27,14 +30,8 @@ class SysAgent(LIAAgent):
         freq = psutil.cpu_freq()
         freq_str = f"{freq.current:.0f}MHz" if freq else "N/A"
         
-        # Load average (Linux/Mac only)
-        if hasattr(os_layer, 'is_linux') and (os_layer.is_linux or os_layer.is_mac):
-            try:
-                load = psutil.getloadavg()
-                return f"CPU: {usage}% | Cores: {count} | Freq: {freq_str} | Load: {load[0]:.1f}/{load[1]:.1f}/{load[2]:.1f}"
-            except Exception:
-                pass
-        return f"CPU: {usage}% | Cores: {count} | Freq: {freq_str}"
+        load_avg = os_layer.get_load_avg()
+        return f"CPU: {usage}% | Cores: {count} | Freq: {freq_str} | Load: {load_avg}"
 
     def check_ram(self) -> str:
         ram = psutil.virtual_memory()
@@ -56,15 +53,16 @@ class SysAgent(LIAAgent):
         return "\n".join(results) if results else "Could not read disk info."
 
     def system_health(self) -> str:
-        """Combined health check — saves 3+ LLM calls."""
+        """Combined health check — leverages deep OS info."""
         info = os_layer.get_system_summary()
         cpu = self.check_cpu()
         ram = self.check_ram()
         disk = self.check_disk()
         
         return (f"╔══ System Health ══╗\n"
-                f"Host: {info['hostname']} ({info['platform']}/{info['arch']})\n"
-                f"Python: {info['python']}\n"
+                f"Host: {info['hostname']} ({info['kernel']})\n"
+                f"Distro: {info.get('distro', 'Unknown')}\n"
+                f"Load Avg: {info.get('load_avg', 'N/A')}\n"
                 f"─────────────────────\n"
                 f"{cpu}\n{ram}\n{disk}\n"
                 f"╚════════════════════╝")
@@ -92,6 +90,23 @@ class SysAgent(LIAAgent):
         except Exception as e:
             return str(LIAResult.fail(ErrorCode.AGENT_CRASHED, f"Process listing failed: {e}"))
 
+    def check_logs(self, service: str = "", limit: int = 50) -> str:
+        """Reads systemd journal (Linux only)."""
+        if not os_layer.is_linux:
+            return "Log checking is only supported on Linux (via journalctl)."
+        
+        cmd = ["journalctl", "--no-pager", "-n", str(limit)]
+        if service:
+            cmd.extend(["-u", service])
+        else:
+            cmd.extend(["-p", "err"])  # Default to errors only if no service specified
+            
+        result = os_layer.run_command(cmd, timeout=10)
+        if not result["success"]:
+            return f"❌ Failed to read logs: {result['stderr']}"
+        
+        return f"📜 System Logs ({limit} lines):\n{result['stdout']}"
+
     def manage_service(self, service_name: str, action: str = "status") -> str:
         cmd = os_layer.get_service_cmd(service_name, action)
         if cmd is None:
@@ -108,4 +123,14 @@ class SysAgent(LIAAgent):
 
     def execute(self, task: str) -> str:
         logger.info(f"SysAgent executing: {task}")
+        # Add extract_args for check_logs
+        import re
+        if "log" in task.lower():
+            match = re.search(r'(?:logs?|journal)\s+(?:for\s+|of\s+)?([a-zA-Z0-9\-_]+)', task, re.I)
+            if match:
+                service = match.group(1).strip()
+                if service not in ["check", "show", "me", "recent", "error"]:
+                    return self.check_logs(service=service)
+            return self.check_logs()  # Default system errors
+            
         return self.smart_execute(task)
