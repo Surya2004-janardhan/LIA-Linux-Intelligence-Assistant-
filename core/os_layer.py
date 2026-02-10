@@ -7,6 +7,7 @@ This module provides:
 3. Process lifecycle management
 4. Environment isolation
 5. Resource limits
+6. INTEGRATED SAFETY GUARD (New)
 """
 import os
 import sys
@@ -15,8 +16,19 @@ import platform
 import ctypes
 import subprocess
 import threading
-from typing import Optional, Callable
+from typing import Optional, Callable, List, Union
 from core.logger import logger
+
+# Lazy import to avoid circular dependency (safety -> os_layer)
+# We import it inside the method or use a property
+_safety_guard = None
+
+def get_safety_guard():
+    global _safety_guard
+    if _safety_guard is None:
+        from core.safety import safety_guard
+        _safety_guard = safety_guard
+    return _safety_guard
 
 
 class OSLayer:
@@ -101,30 +113,70 @@ class OSLayer:
 
     # ─── SAFE SUBPROCESS EXECUTION ────────────────────────────────
 
-    def run_command(self, cmd: list, timeout: int = 30, cwd: str = None, 
+    def run_command(self, cmd: Union[List[str], str], timeout: int = 30, cwd: str = None, 
                     env: dict = None, shell: bool = False) -> dict:
         """
         The ONLY way agents should run shell commands.
-        Returns structured result with stdout, stderr, returncode, and timing.
+        Enforces Safety Guardrails before execution.
         """
         import time
         start = time.monotonic()
         
+        # Normalize cmd to list if string
+        if isinstance(cmd, str):
+            cmd_str = cmd
+            cmd_list = cmd.split()
+        else:
+            cmd_str = " ".join(cmd)
+            cmd_list = cmd
+            
+        # 1. SAFETY CHECK
+        guard = get_safety_guard()
+        assessment = guard.validate_command(cmd_str)
+        
+        if assessment["risk_level"] == "BLOCKED":
+            return {
+                "success": False,
+                "stdout": "",
+                "stderr": f"SAFETY BLOCK: Command '{cmd_str}' is denied by policy.",
+                "returncode": -1,
+                "duration_ms": 0,
+                "timed_out": False
+            }
+        
+        if assessment["risk_level"] == "HIGH_RISK":
+            # For now, we just log warning and proceed (or fail if strict mode)
+            # In a real CLI, we'd ask for confirmation interactively, but agents run headless.
+            # We fail high-risk commands in headless mode unless a 'force' flag is implemented.
+            # config.get('security.block_destructive_commands') could be used here.
+            # For this implementation, we'll return a specific error asking user to run manual.
+            return {
+                "success": False,
+                "stdout": "",
+                "stderr": f"HIGH RISK BLOCKED: '{cmd_str}' requires manual confirmation.\nReason: {assessment['reason']}",
+                "returncode": -1,
+                "duration_ms": 0,
+                "timed_out": False
+            }
+
         try:
             # Merge environment
             run_env = os.environ.copy()
             if env:
                 run_env.update(env)
             
+            # Use shell=True if explicitly requested OR platform requires it for certain tasks
+            # But default to False for safety
+            
             proc = subprocess.Popen(
-                cmd,
+                cmd_list if not shell else cmd_str,
                 stdout=subprocess.PIPE,
                 stderr=subprocess.PIPE,
                 text=True,
                 cwd=cwd,
                 env=run_env,
                 shell=shell,
-                # Prevent child from inheriting parent signals
+                # Prevent child from inheriting parent signals (Windows only)
                 creationflags=subprocess.CREATE_NEW_PROCESS_GROUP if self.is_windows else 0
             )
             self._active_processes.append(proc)
@@ -161,7 +213,7 @@ class OSLayer:
             return {
                 "success": False,
                 "stdout": "",
-                "stderr": f"Command not found: '{cmd[0]}'. Is it installed and in PATH?",
+                "stderr": f"Command not found: '{cmd_list[0]}'. Is it installed and in PATH?",
                 "returncode": -1,
                 "duration_ms": 0,
                 "timed_out": False
@@ -170,7 +222,7 @@ class OSLayer:
             return {
                 "success": False,
                 "stdout": "",
-                "stderr": f"Permission denied: Cannot execute '{cmd[0]}'",
+                "stderr": f"Permission denied: Cannot execute '{cmd_list[0]}'",
                 "returncode": -1,
                 "duration_ms": 0,
                 "timed_out": False

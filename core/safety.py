@@ -5,7 +5,9 @@ This is the layer between the LLM output and actual execution.
 Every command passes through here before touching the OS.
 """
 import re
-from typing import Tuple
+import shutil
+import subprocess
+from typing import Tuple, Optional
 from core.logger import logger
 
 # ─── HIGH-RISK COMMAND PATTERNS ──────────────────────────────────
@@ -71,6 +73,7 @@ class SafetyGuard:
     def __init__(self):
         self.blocked_patterns = [re.compile(p, re.I) for p in BLOCKED_COMMANDS]
         self.high_risk_patterns = [re.compile(p, re.I) for p in HIGH_RISK_COMMANDS]
+        self.shellcheck_path = shutil.which("shellcheck")
     
     def assess_risk(self, command: str) -> Tuple[str, str]:
         """
@@ -89,7 +92,7 @@ class SafetyGuard:
         
         return "SAFE", "Command appears safe"
     
-    def get_dry_run_version(self, command: str) -> str:
+    def get_dry_run_version(self, command: str) -> Optional[str]:
         """
         Returns a dry-run version of the command if supported.
         Returns None if dry-run not supported for this command.
@@ -104,6 +107,33 @@ class SafetyGuard:
                         parts.insert(i + 1, flag)
                         return " ".join(parts)
         return None
+
+    def run_static_analysis(self, command: str) -> Optional[str]:
+        """
+        Runs shellcheck on the command string if available.
+        Returns a warning string if issues found, else None.
+        """
+        if not self.shellcheck_path:
+            return None
+        
+        try:
+            # We explicitly output to json to parse it, or plain text for easy display
+            proc = subprocess.run(
+                [self.shellcheck_path, "-"],
+                input=f"#!/bin/sh\n{command}",
+                text=True,
+                capture_output=True
+            )
+            
+            if proc.returncode != 0 and proc.stdout:
+                # Filter out the sheath header
+                warnings = [line for line in proc.stdout.splitlines() if "In -" not in line and line.strip()]
+                if warnings:
+                    return "\n".join(warnings)
+            return None
+        except Exception as e:
+            logger.warning(f"Shellcheck failed: {e}")
+            return None
     
     def validate_command(self, command: str) -> dict:
         """
@@ -111,6 +141,7 @@ class SafetyGuard:
         """
         risk_level, reason = self.assess_risk(command)
         dry_run = self.get_dry_run_version(command)
+        static_analysis = self.run_static_analysis(command)
         
         result = {
             "command": command,
@@ -118,6 +149,7 @@ class SafetyGuard:
             "reason": reason,
             "dry_run_available": dry_run is not None,
             "dry_run_command": dry_run,
+            "static_analysis": static_analysis,
             "allow_execution": risk_level != "BLOCKED",
         }
         
@@ -126,29 +158,38 @@ class SafetyGuard:
         elif risk_level == "HIGH_RISK":
             logger.warning(f"HIGH RISK: {command} — {reason}")
         
+        if static_analysis:
+            logger.info(f"Static Analysis Warning for '{command}': {static_analysis}")
+            
         return result
     
     def format_risk_display(self, assessment: dict) -> str:
         """Formats the risk assessment for CLI/GUI display."""
         risk = assessment["risk_level"]
+        static_warn = assessment.get("static_analysis")
+        
+        sections = []
         
         if risk == "BLOCKED":
-            return (f"🚫 BLOCKED — This command is too dangerous to execute.\n"
-                    f"   Reason: {assessment['reason']}\n"
-                    f"   Command: {assessment['command']}")
+            sections.append(f"🚫 BLOCKED — This command is too dangerous to execute.\n"
+                           f"   Reason: {assessment['reason']}\n"
+                           f"   Command: {assessment['command']}")
         
-        if risk == "HIGH_RISK":
-            lines = [
-                f"⚠️  HIGH RISK — This command may cause data loss.",
-                f"   Reason: {assessment['reason']}",
-                f"   Command: {assessment['command']}",
-            ]
+        elif risk == "HIGH_RISK":
+            sections.append(f"⚠️  HIGH RISK — This command may cause data loss.\n"
+                           f"   Reason: {assessment['reason']}\n"
+                           f"   Command: {assessment['command']}")
             if assessment["dry_run_available"]:
-                lines.append(f"   💡 Dry-run available: {assessment['dry_run_command']}")
-            lines.append(f"   Type 'yes' to confirm, 'dry' to dry-run, or 'no' to cancel.")
-            return "\n".join(lines)
+                sections.append(f"   💡 Dry-run available: {assessment['dry_run_command']}")
+            sections.append(f"   Type 'yes' to confirm, 'dry' to dry-run, or 'no' to cancel.")
         
-        return f"✅ SAFE: {assessment['command']}"
+        else:
+            sections.append(f"✅ SAFE: {assessment['command']}")
+
+        if static_warn:
+            sections.append(f"\n🔍 Static Analysis (ShellCheck):\n{static_warn}")
+
+        return "\n".join(sections)
 
 
 # Singleton

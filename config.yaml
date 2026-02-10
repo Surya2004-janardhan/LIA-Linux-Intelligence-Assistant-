@@ -1,28 +1,58 @@
+
+# LIA Configuration
+
+# LLM Settings
 llm:
-  provider: "ollama"  # or "openai", "anthropic", etc.
-  model: "llama3"     # default model for local use
-  base_url: "http://localhost:11434" # default Ollama endpoint
+  # implementation: "ollama", "openai", "groq", "anthropic", "gemini"
+  provider: "ollama"
+  # Common models:
+  # Ollama: "llama3", "mistral", "codellama"
+  # OpenAI: "gpt-4-turbo", "gpt-3.5-turbo"
+  # Groq: "llama3-70b-8192", "mixtral-8x7b-32768"
+  # Gemini: "gemini-pro"
+  model: "llama3"
+  
+  # Base URL for local providers (Ollama default: http://localhost:11434)
+  base_url: "http://localhost:11434"
+  
+  # API Keys (leave empty if using env vars like OPENAI_API_KEY)
+  api_key: ""
+  
+  # Safety settings
+  temperature: 0.2
+  max_tokens: 4096
 
-memory:
-  path: "memory/lia_memory.db"
-  index_path: "memory/vector_index"
-
-ui:
-  theme: "dark"
-  fps: 60
-
-security:
-  dry_run: true
-  sandbox_enabled: false
-
+# Permission & Security
 permissions:
   allowed_paths:
-    - "c:/Users/chint/Documents"
-    - "c:/Users/chint/Downloads"
-    - "c:/Users/chint/Desktop"
+    - "~/Documents"
+    - "~/Downloads"
+    - "~/Desktop"
     - "."
+  
+  # Connection Kill-Switches (Deny by default)
+  connections:
+    gmail_enabled: false
+    calendar_enabled: false
+    custom_api_enabled: false
 
-connections:
-  gmail_enabled: false
-  calendar_enabled: false
-  custom_api_enabled: false
+security:
+  # Wrap dangerous commands in a sandbox (Linux only, uses firejail)
+  sandbox_enabled: false
+  # Dry-run mode for supported agents (Git, Package)
+  dry_run: true
+  # Block commands in safety.py blacklist
+  block_destructive_commands: true
+
+# User Interface
+ui:
+  theme: "dark"
+  # syntax_highlighting: true (requires 'rich' package)
+  rich_output: true
+
+# Feedback & Memory
+memory:
+  # Enable Reduced Augmentation Generation from history
+  rag_enabled: true
+  # Path to local database
+  db_path: "memory/lia.db"
