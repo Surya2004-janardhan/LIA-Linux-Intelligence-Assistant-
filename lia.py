@@ -1,11 +1,19 @@
 from core.config import config
 from core.llm_bridge import llm_bridge
 from core.logger import logger
+from core.orchestrator import Orchestrator
 from memory.indexer import indexer
+from agents.mock_agent import MockAgent
 import sys
+import json
 
 def main():
     logger.info("Initializing LIA...")
+    
+    # Initialize some mock agents for Phase 3 testing
+    file_agent = MockAgent("FileAgent", ["File search", "Organization", "Backup"])
+    sys_agent = MockAgent("SysAgent", ["Process control", "Health checks"])
+    orchestrator = Orchestrator([file_agent, sys_agent])
     
     if len(sys.argv) > 1:
         cmd = sys.argv[1]
@@ -26,15 +34,31 @@ def main():
             print("-------------------------------\n")
             return
 
+        if cmd == "ask":
+            query = " ".join(sys.argv[2:])
+            logger.info(f"Phase 3: Orchestrating for '{query}'...")
+            plan = orchestrator.plan(query)
+            print("\n--- LIA PLAN ---")
+            print(json.dumps(plan, indent=2))
+            
+            confirm = input("\nExecute this plan? (y/n): ")
+            if confirm.lower() == 'y':
+                results = orchestrator.run(query)
+                print("\n--- EXECUTION RESULTS ---")
+                for res in results:
+                    print(f"Step {res['step']}: {res['result']}")
+            return
+
     # Default logic (Phase 1)
     provider = config.get('llm.provider')
     logger.info(f"LLM Provider: {provider}")
-    logger.info("LIA Ready. Use 'index' or 'search <query>' to test Phase 2.")
+    logger.info("LIA Ready. Use 'ask <query>' to test Phase 3.")
     
     print("\n--- LIA STATUS ---")
     print(f"Provider: {provider}")
     print(f"Model: {config.get('llm.model')}")
-    print("Memory: Ready (Semantic Search Enabled)")
+    print("Memory: Ready")
+    print("Orchestrator: Ready (Mock Mode)")
     print("------------------\n")
 
 if __name__ == "__main__":
