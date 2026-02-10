@@ -1,6 +1,8 @@
+import re
 from agents.base_agent import LIAAgent
 from core.logger import logger
-import subprocess
+from core.os_layer import os_layer
+from core.errors import LIAResult, ErrorCode
 
 class DockerAgent(LIAAgent):
     def __init__(self):
@@ -14,37 +16,55 @@ class DockerAgent(LIAAgent):
             keywords=["stop container", "docker stop"])
         self.register_tool("compose_up", self.compose_up, "Runs docker-compose up",
             keywords=["compose", "docker-compose", "compose up"])
+        self.register_tool("list_images", self.list_images, "Lists Docker images",
+            keywords=["images", "docker images"])
+        self.register_tool("container_logs", self.container_logs, "Shows container logs",
+            keywords=["logs", "docker logs"])
 
-    def _docker_cmd(self, cmd: list, timeout: int = 30):
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-            return result.stdout if result.returncode == 0 else f"Error: {result.stderr}"
-        except FileNotFoundError:
-            return "Docker not found. Is Docker installed and in PATH?"
-        except subprocess.TimeoutExpired:
-            return f"Timeout: {' '.join(cmd)}"
-        except Exception as e:
-            return f"Error: {str(e)}"
+    def _docker(self, cmd: list, timeout: int = 30) -> str:
+        result = os_layer.run_command(cmd, timeout=timeout)
+        if not result["success"]:
+            if "not found" in result["stderr"].lower() or result["returncode"] == -1:
+                return str(LIAResult.fail(ErrorCode.DEPENDENCY_MISSING,
+                    "Docker not found", suggestion="Install Docker: https://docs.docker.com/get-docker/"))
+            if result["timed_out"]:
+                return str(LIAResult.fail(ErrorCode.COMMAND_TIMEOUT, 
+                    f"Docker command timed out after {timeout}s"))
+            return str(LIAResult.fail(ErrorCode.AGENT_CRASHED, result["stderr"]))
+        return result["stdout"] if result["stdout"] else "Command completed (no output)."
 
-    def list_containers(self):
-        return self._docker_cmd(["docker", "ps", "-a", "--format", "table {{.Names}}\t{{.Status}}\t{{.Ports}}"])
+    def list_containers(self) -> str:
+        return self._docker(["docker", "ps", "-a", "--format", 
+            "table {{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.Image}}"])
 
-    def start_container(self, container_name: str):
-        return self._docker_cmd(["docker", "start", container_name])
+    def start_container(self, container_name: str) -> str:
+        result = self._docker(["docker", "start", container_name])
+        if "LIAResult.fail" not in result and "Error" not in result:
+            return f"✅ Container started: {container_name}"
+        return result
 
-    def stop_container(self, container_name: str):
-        return self._docker_cmd(["docker", "stop", container_name])
+    def stop_container(self, container_name: str) -> str:
+        result = self._docker(["docker", "stop", container_name], timeout=15)
+        if "LIAResult.fail" not in result and "Error" not in result:
+            return f"✅ Container stopped: {container_name}"
+        return result
 
-    def compose_up(self, path: str = "."):
-        return self._docker_cmd(["docker-compose", "up", "-d"], timeout=60)
+    def compose_up(self, path: str = ".") -> str:
+        return self._docker(["docker-compose", "up", "-d"], timeout=120)
+
+    def list_images(self) -> str:
+        return self._docker(["docker", "images", "--format", 
+            "table {{.Repository}}\t{{.Tag}}\t{{.Size}}"])
+
+    def container_logs(self, container_name: str, lines: int = 50) -> str:
+        return self._docker(["docker", "logs", "--tail", str(lines), container_name])
 
     def extract_args_from_task(self, task: str, tool_name: str) -> dict:
-        import re
-        if tool_name in ("start_container", "stop_container"):
-            match = re.search(r'(?:start|stop)\s+(?:container\s+)?(\S+)', task, re.I)
+        if tool_name in ("start_container", "stop_container", "container_logs"):
+            match = re.search(r'(?:start|stop|logs?\s+(?:of|for)?)\s+(?:container\s+)?(\S+)', task, re.I)
             return {"container_name": match.group(1) if match else ""}
         return {}
 
     def execute(self, task: str) -> str:
-        logger.info(f"DockerAgent executing task: {task}")
+        logger.info(f"DockerAgent executing: {task}")
         return self.smart_execute(task)

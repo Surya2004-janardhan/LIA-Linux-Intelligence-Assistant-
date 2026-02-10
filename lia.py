@@ -4,6 +4,8 @@ from core.logger import logger
 from core.orchestrator import Orchestrator
 from core.workflow_engine import WorkflowEngine
 from core.memory_manager import central_memory
+from core.os_layer import os_layer
+from core.audit import audit_manager
 from memory.indexer import indexer
 from agents.file_agent import FileAgent
 from agents.sys_agent import SysAgent
@@ -18,10 +20,13 @@ from ui.gui import start_gui
 from ui.tui import start_tui
 from core.guardian import guardian
 import sys
-import json
 
 def main():
     logger.info("Initializing LIA...")
+    
+    # Register cleanup hooks for graceful shutdown
+    os_layer.register_shutdown_hook(central_memory.close)
+    os_layer.register_shutdown_hook(audit_manager.close)
     
     # Start the Guardian background monitor
     guardian.start()
@@ -85,7 +90,6 @@ def main():
         if cmd == "run":
             workflow_name = sys.argv[2] if len(sys.argv) > 2 else None
             if not workflow_name:
-                # List available workflows
                 workflows = workflow_engine.list_workflows()
                 print("\n--- Available Workflows ---")
                 for wf in workflows:
@@ -123,24 +127,26 @@ def main():
 
         # --- Status ---
         if cmd == "status":
-            provider = config.get('llm.provider')
+            info = os_layer.get_system_summary()
             agent_count = len(orchestrator.agents)
-            print(f"\n{'═' * 40}")
-            print(f"  LIA STATUS")
-            print(f"{'═' * 40}")
-            print(f"  Provider:     {provider}")
+            print(f"\n{'═' * 45}")
+            print(f"  LIA STATUS — {info['hostname']}")
+            print(f"{'═' * 45}")
+            print(f"  Platform:     {info['platform']}/{info['arch']}")
+            print(f"  Python:       {info['python']}")
+            print(f"  Provider:     {config.get('llm.provider')}")
             print(f"  Model:        {config.get('llm.model')}")
             print(f"  Agents:       {agent_count} specialists")
-            print(f"  Memory:       Ready")
+            print(f"  Memory:       Ready (SQLite + FAISS)")
             print(f"  Sandbox:      {'ON' if config.get('security.sandbox_enabled') else 'OFF'}")
             print(f"  Dry Run:      {'ON' if config.get('security.dry_run') else 'OFF'}")
-            print(f"{'═' * 40}")
+            print(f"{'─' * 45}")
             print(f"  Agents: {', '.join(orchestrator.agents.keys())}")
-            print(f"{'═' * 40}\n")
+            print(f"{'═' * 45}\n")
             return
 
         # --- Help ---
-        if cmd == "help" or cmd == "--help":
+        if cmd in ("help", "--help", "-h"):
             print_help()
             return
 

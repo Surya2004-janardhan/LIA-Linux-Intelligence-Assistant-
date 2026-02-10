@@ -1,6 +1,5 @@
 # LIA Agent Ecosystem
 
-
 LIA uses a **Dynamic Multi-Agent Swarm**. Agents are auto-discovered by the Orchestrator — add a new one and it's immediately available for routing.
 
 ---

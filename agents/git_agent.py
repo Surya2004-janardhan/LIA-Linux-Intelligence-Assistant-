@@ -1,6 +1,8 @@
-import subprocess
+import re
 from agents.base_agent import LIAAgent
 from core.logger import logger
+from core.os_layer import os_layer
+from core.errors import LIAResult, ErrorCode
 
 class GitAgent(LIAAgent):
     def __init__(self):
@@ -16,45 +18,64 @@ class GitAgent(LIAAgent):
             keywords=["log", "history", "recent commits"])
         self.register_tool("git_diff", self.git_diff, "Shows uncommitted changes",
             keywords=["diff", "what changed"])
+        self.register_tool("git_branch", self.git_branch, "Lists or shows current branch",
+            keywords=["branch", "branches"])
 
-    def _run_command(self, cmd: list, timeout: int = 15):
-        try:
-            result = subprocess.run(cmd, capture_output=True, text=True, timeout=timeout)
-            return result.stdout if result.returncode == 0 else f"Error: {result.stderr}"
-        except subprocess.TimeoutExpired:
-            return f"Timeout: {' '.join(cmd)} took too long."
-        except FileNotFoundError:
-            return f"Error: '{cmd[0]}' not found. Is it installed?"
-        except Exception as e:
-            return f"Command failure: {str(e)}"
+    def git_status(self) -> str:
+        result = os_layer.run_command(['git', 'status', '--short'], timeout=10)
+        if not result["success"]:
+            return str(LIAResult.fail(ErrorCode.COMMAND_NOT_FOUND, result["stderr"]))
+        return result["stdout"] if result["stdout"] else "Working tree clean ✅"
 
-    def git_status(self):
-        return self._run_command(['git', 'status', '--short'])
+    def git_commit(self, message: str = "Auto-commit by LIA") -> str:
+        # Stage
+        stage = os_layer.run_command(['git', 'add', '.'], timeout=10)
+        if not stage["success"]:
+            return str(LIAResult.fail(ErrorCode.COMMAND_NOT_FOUND, stage["stderr"]))
+        # Commit
+        result = os_layer.run_command(['git', 'commit', '-m', message], timeout=15)
+        if not result["success"]:
+            if "nothing to commit" in result["stderr"].lower() or "nothing to commit" in result["stdout"].lower():
+                return "Nothing to commit — working tree clean."
+            return str(LIAResult.fail(ErrorCode.AGENT_CRASHED, result["stderr"]))
+        return f"✅ Committed: {message}\n{result['stdout']}"
 
-    def git_commit(self, message: str = "Auto-commit by LIA"):
-        self._run_command(['git', 'add', '.'])
-        return self._run_command(['git', 'commit', '-m', message])
+    def git_log(self, count: int = 10) -> str:
+        result = os_layer.run_command(['git', 'log', '--oneline', '-n', str(count)], timeout=10)
+        if not result["success"]:
+            return str(LIAResult.fail(ErrorCode.COMMAND_NOT_FOUND, result["stderr"]))
+        return result["stdout"]
 
-    def git_log(self, count: int = 10):
-        return self._run_command(['git', 'log', f'--oneline', f'-n', str(count)])
+    def git_diff(self) -> str:
+        result = os_layer.run_command(['git', 'diff', '--stat'], timeout=10)
+        if not result["success"]:
+            return str(LIAResult.fail(ErrorCode.COMMAND_NOT_FOUND, result["stderr"]))
+        return result["stdout"] if result["stdout"] else "No uncommitted changes."
 
-    def git_diff(self):
-        return self._run_command(['git', 'diff', '--stat'])
+    def git_branch(self) -> str:
+        result = os_layer.run_command(['git', 'branch', '-a'], timeout=10)
+        if not result["success"]:
+            return str(LIAResult.fail(ErrorCode.COMMAND_NOT_FOUND, result["stderr"]))
+        return result["stdout"]
 
-    def gh_pr_list(self):
-        return self._run_command(['gh', 'pr', 'list'])
+    def gh_pr_list(self) -> str:
+        result = os_layer.run_command(['gh', 'pr', 'list'], timeout=15)
+        if not result["success"]:
+            if "not found" in result["stderr"].lower() or result["returncode"] == -1:
+                return str(LIAResult.fail(ErrorCode.DEPENDENCY_MISSING, 
+                    "GitHub CLI (gh) not found", suggestion="Install: https://cli.github.com"))
+            return str(LIAResult.fail(ErrorCode.COMMAND_NOT_FOUND, result["stderr"]))
+        return result["stdout"] if result["stdout"] else "No open pull requests."
 
     def extract_args_from_task(self, task: str, tool_name: str) -> dict:
-        import re
         if tool_name == "git_commit":
             match = re.search(r"(?:message|msg|with)\s+['\"](.+?)['\"]", task, re.I)
             if match:
                 return {"message": match.group(1)}
-            # Try extracting text after "commit"
             match = re.search(r"commit\s+(.+)", task, re.I)
             return {"message": match.group(1).strip() if match else "Auto-commit by LIA"}
         return {}
 
     def execute(self, task: str) -> str:
-        logger.info(f"GitAgent executing task: {task}")
+        logger.info(f"GitAgent executing: {task}")
         return self.smart_execute(task)
