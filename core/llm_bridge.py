@@ -1,7 +1,7 @@
 import asyncio
 from litellm import completion, acompletion
 from core.config import config
-from core.memory_manager import central_memory
+from core.logger import logger
 
 class LLMBridge:
     def __init__(self):
@@ -9,19 +9,14 @@ class LLMBridge:
         self.model = config.get('llm.model', 'llama3')
         self.base_url = config.get('llm.base_url', 'http://localhost:11434')
 
-    def generate(self, messages, **kwargs):
-        """
-        Generates a response using litellm to support multiple backends.
-        """
-        model_name = self.model
-    def generate(self, messages, **kwargs):
-        """
-        Generates a response using litellm to support multiple backends.
-        """
-        model_name = self.model
+    def _get_model_name(self):
         if self.provider == "ollama":
-            model_name = f"ollama/{self.model}"
-        
+            return f"ollama/{self.model}"
+        return self.model
+
+    def generate(self, messages, **kwargs):
+        """Synchronous LLM generation."""
+        model_name = self._get_model_name()
         try:
             response = completion(
                 model=model_name,
@@ -31,18 +26,12 @@ class LLMBridge:
             )
             return response.choices[0].message.content
         except Exception as e:
+            logger.error(f"LLM call failed ({self.provider}): {e}")
             return f"Error connecting to LLM ({self.provider}): {str(e)}"
 
     async def generate_async(self, messages, **kwargs):
-        """Asynchronous generation for parallel agent tasks."""
-        model_name = self.model
-        if self.provider == "ollama":
-            model_name = f"ollama/{self.model}"
-        
-        # Inject Central System Instructions
-        system_instruction = central_memory.get_system_prompt()
-        messages.insert(0, {"role": "system", "content": system_instruction})
-
+        """Asynchronous LLM generation for parallel agent tasks."""
+        model_name = self._get_model_name()
         try:
             response = await acompletion(
                 model=model_name,
@@ -52,6 +41,7 @@ class LLMBridge:
             )
             return response.choices[0].message.content
         except Exception as e:
+            logger.error(f"Async LLM call failed ({self.provider}): {e}")
             return f"Async Error ({self.provider}): {str(e)}"
 
 # Singleton instance

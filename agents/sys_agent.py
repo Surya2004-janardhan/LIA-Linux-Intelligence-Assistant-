@@ -3,72 +3,63 @@ import subprocess
 import os
 from agents.base_agent import LIAAgent
 from core.logger import logger
-from core.llm_bridge import llm_bridge
 
 class SysAgent(LIAAgent):
     def __init__(self):
         super().__init__("SysAgent", ["Process management", "Service control", "Health monitoring", "Disk status"])
-        self.register_tool("check_cpu", self.check_cpu, "Returns current CPU usage percentage")
-        self.register_tool("check_ram", self.check_ram, "Returns current RAM usage")
-        self.register_tool("check_disk", self.check_disk, "Returns disk usage for all partitions")
-        self.register_tool("manage_service", self.manage_service, "Starts, stops, or checks status of a system service (Linux only)")
+        
+        self.register_tool("check_cpu", self.check_cpu, "Returns current CPU usage percentage",
+            keywords=["cpu", "processor"])
+        self.register_tool("check_ram", self.check_ram, "Returns current RAM usage",
+            keywords=["ram", "memory usage", "memory"])
+        self.register_tool("check_disk", self.check_disk, "Returns disk usage for all partitions",
+            keywords=["disk", "storage", "space"])
+        self.register_tool("manage_service", self.manage_service, "Manage system services (Linux only)",
+            keywords=["service", "systemctl", "restart", "start service", "stop service"])
+        self.register_tool("system_health", self.system_health, "Full system health summary",
+            keywords=["health", "system status", "overview", "check system"])
 
     def check_cpu(self):
         usage = psutil.cpu_percent(interval=1)
-        return f"CPU Usage: {usage}%"
+        count = psutil.cpu_count()
+        freq = psutil.cpu_freq()
+        return f"CPU: {usage}% | Cores: {count} | Freq: {freq.current:.0f}MHz"
 
     def check_ram(self):
         ram = psutil.virtual_memory()
-        return f"RAM Usage: {ram.percent}% ({ram.used // (1024**2)}MB used / {ram.total // (1024**2)}MB total)"
+        return f"RAM: {ram.percent}% ({ram.used // (1024**2)}MB / {ram.total // (1024**2)}MB)"
 
     def check_disk(self):
-        disk = psutil.disk_usage('/')
-        return f"Disk Usage (/): {disk.percent}% free of {disk.total // (1024**3)}GB"
+        partitions = psutil.disk_partitions()
+        results = []
+        for p in partitions:
+            try:
+                usage = psutil.disk_usage(p.mountpoint)
+                results.append(f"{p.mountpoint}: {usage.percent}% used ({usage.free // (1024**3)}GB free)")
+            except PermissionError:
+                continue
+        return "\n".join(results) if results else "Could not read disk info."
 
-    def manage_service(self, service_name: str, action: str):
-        """
-        Executes systemctl commands. Note: Only works on Linux.
-        """
+    def system_health(self):
+        """Full system health in one call — saves 3 separate LLM calls."""
+        cpu = self.check_cpu()
+        ram = self.check_ram()
+        disk = self.check_disk()
+        return f"=== System Health ===\n{cpu}\n{ram}\n{disk}"
+
+    def manage_service(self, service_name: str, action: str = "status"):
         if os.name == 'nt':
-            return "Error: Service management via systemctl is only supported on Linux."
-        
+            return "Service management via systemctl is Linux only."
         try:
-            result = subprocess.run(['systemctl', action, service_name], capture_output=True, text=True)
+            result = subprocess.run(['systemctl', action, service_name], capture_output=True, text=True, timeout=10)
             if result.returncode == 0:
-                return f"Successfully executed '{action}' on '{service_name}'\n{result.stdout}"
-            else:
-                return f"Failed to execute '{action}' on '{service_name}': {result.stderr}"
+                return f"'{action}' on '{service_name}': {result.stdout}"
+            return f"Failed: {result.stderr}"
+        except subprocess.TimeoutExpired:
+            return f"Timeout: systemctl {action} {service_name} took too long."
         except Exception as e:
             return f"Error: {str(e)}"
 
     def execute(self, task: str) -> str:
         logger.info(f"SysAgent executing task: {task}")
-        
-        prompt = f"""
-        {self.get_capabilities_prompt()}
-        
-        User Task: {task}
-        
-        Decide which tool to use and provide the arguments in JSON format.
-        Example: {{"tool": "check_cpu", "args": {{}}}}
-        """
-        
-        messages = [{"role": "system", "content": "You are a specialized System Administration Agent."},
-                    {"role": "user", "content": prompt}]
-        
-        try:
-            response = llm_bridge.generate(messages, response_format={"type": "json_object"})
-            import json
-            data = json.loads(response)
-            tool_name = data.get("tool")
-            args = data.get("args", {})
-            
-            if tool_name in self.tools:
-                logger.info(f"SysAgent calling tool: {tool_name} with {args}")
-                result = self.tools[tool_name]["func"](**args)
-                return result
-            else:
-                return f"Error: Tool {tool_name} not found."
-        except Exception as e:
-            logger.error(f"SysAgent failed to process task: {e}")
-            return f"Task failed: {str(e)}"
+        return self.smart_execute(task)
