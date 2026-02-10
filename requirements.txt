@@ -4,6 +4,10 @@ langchain
 sentence-transformers
 psutil
 sqlite-utils
-pyyaml
+PyYAML
 python-dotenv
 requests
+aiohttp
+faiss-cpu
+numpy
+textual

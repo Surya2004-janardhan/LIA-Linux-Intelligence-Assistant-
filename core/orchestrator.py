@@ -94,3 +94,30 @@ Example JSON Output:
                 logger.warning(f"Agent {agent_name} not found for step {step['id']}")
         
         return results
+
+    async def run_async(self, user_query: str):
+        """
+        Executes the full plan asynchronously (Parallel Swarm).
+        Enables concurrent agent execution for faster multi-step workflows.
+        """
+        import asyncio
+        plan = self.plan(user_query)
+        tasks = []
+        
+        for step in plan.get("steps", []):
+            agent_name = step.get("agent")
+            task_desc = step.get("task")
+            
+            if agent_name in self.agents:
+                logger.info(f"Queuing Parallel Step {step['id']}: [{agent_name}]")
+                agent = self.agents[agent_name]
+                tasks.append(self._execute_step_async(step, agent))
+        
+        results = await asyncio.gather(*tasks)
+        return results
+
+    async def _execute_step_async(self, step, agent):
+        """Helper to execute a single agent step asynchronously."""
+        result = agent.execute(step['task'])
+        audit_manager.log_action(agent.name, step['task'], result)
+        return {"step": step['id'], "result": result}
