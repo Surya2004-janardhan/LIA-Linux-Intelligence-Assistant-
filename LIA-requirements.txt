@@ -3,11 +3,12 @@
 ## **🎯 1. PROJECT IDENTITY (Updated)**
 ```
 Name: **LIA** (Linux Intelligence Assistant) 
-Tagline: "English → Linux → Agents → Done."
+Tagline: "English → Linux → Agents → Done. (100% Local & Private)"
 Icon: Linux penguin + neural network + agent swarm (teal/orange/purple)
 App ID: `io.github.yourname.lia`
 License: MIT (fully open source)
 Platforms: AppImage/Flatpak/Snap/AUR/Native
+Philosophy: **Local-First.** No data collection. User owns their intelligence.
 ```
 
 ## **🧠 2. CORE ARCHITECTURE - AGENT SWARM SYSTEM**
@@ -17,7 +18,7 @@ Platforms: AppImage/Flatpak/Snap/AUR/Native
 ┌─ User Query ─────────────────────────────┐
 │ "organize Downloads + backup + tweet"    │
 └────────────┬─────────────────────────────┘
-             ↓ LLM Planner (5% API calls)
+             ↓ LLM Planner (Local Ollama / Optional API)
 ┌────────────┼─────────────────────────────┐
 │ 🧠 Cache (85%) │ 📊 RAG (10%) │ 🎯 Agents (5%) │
 └────────────┴─────────────────────────────┘
@@ -99,6 +100,15 @@ Capabilities:
 ├── Multi-agent orchestration
 └── Community workflow marketplace
 ```
+
+## **⚡ 3.5 LIGHTWEIGHT POWER-UPS (Add-ons)**
+
+To maximize utility while keeping the resource footprint small:
+1. **Local LLM Bridge (Ollama)**: Direct connection to local Ollama instances for 100% privacy and zero cost.
+2. **LIA TUI (Terminal UI)**: A high-performance TUI (using `Textual`) for SSH sessions and headless servers.
+3. **Hot-Loading Plugins**: Micro-agent system where dropping a `.py` file in `/plugins` registers new capabilities instantly.
+4. **Shell Integration (`lia` command)**: A native bridge for ZSH/Bash to trigger agent swarms from the prompt.
+5. **Guardian Daemon**: A low-resource background process to monitor hardware/service health and alert the GUI.
 
 ## **🗄️ 4. ADVANCED DATA LAYER (50MB Total)**
 
@@ -247,10 +257,12 @@ AGENT PERMISSIONS (Granular):
 ├── Workflows: Edit own ✅, community ❓
 
 WORKFLOW SAFETY:
+✅ 100% Local Execution (No data leaves the machine)
+✅ Ollama Integration (Private models)
 ✅ Sandboxed execution (firejail)
 ✅ Dry-run preview mode
 ✅ Rollback capability (snapper/rsync)
-✅ Audit trail (every action logged)
+✅ Audit trail (every action logged locally)
 ✅ Multi-step approval (sudo + confirm)
 ```
 
@@ -289,29 +301,47 @@ Servers: ✅ Docker/K8s/SSH
 Workstations: ✅ All DEs/WMs
 ```
 
-## **🚀 13. DETAILED ROADMAP (4 Weeks → Production)**
+## **🚀 13. DETAILED TECHNICAL ROADMAP (4 Phases)**
 
-```
-**WEEK 1: CORE INFRASTRUCTURE**
-Day 1-2: CLI + 85% cache → "latest resume" perfect
-Day 3-4: Flet GUI + FileAgent → elementary native
-Day 5: SysAgent + basic workflows → systemctl magic
-Day 6: AppImage + Flatpak → LAUNCH 🚀
+### **PHASE 1: FOUNDATION & BRAIN (Week 1)**
+*Objective: Build the core local-first orchestrator and semantic memory.*
 
-**WEEK 2: AGENT SWARM**  
-Day 8-9: GitAgent + NetAgent → dev/server power
-Day 10: WebAgent + voice → universal launcher
-Day 11: Agent collaboration → multi-step magic
-Day 12: Workflow GUI → no-code automation
+*   **Task 1.1: Local-First Setup**
+    *   *Implementation*: Initialize Python venv. Configure LLM Bridge: Default to **Ollama** (local) with fallback/toggle for OpenAI-compatible APIs. Create SQLite schema for 100% local agent memory.
+*   **Task 1.2: Local Semantic Memory (RAG Strategy)**
+    *   *Implementation*: Use `sentence-transformers` + `FAISS` for **on-device** indexing. No cloud embeddings.
+*   **Task 1.3: Multi-Agent Hub (LangChain/ReAct)**
+    *   *Implementation*: Create a base `LIAAgent` class with unified tool-calling and error-reporting schemas.
 
-**WEEK 3: PRODUCTION POLISH**
-Day 13-14: Security + enterprise features
-Day 15: Multi-distro testing + packaging
+### **PHASE 2: THE CORE SWARM (Week 2)**
+*Objective: Deploy the file, system, and version control specialists.*
 
-**WEEK 4: MARKETPLACE + SCALE**
-Day 16-20: Community workflows marketplace
-Day 21: HN/Reddit launch → 10K stars target
-```
+*   **Task 2.1: FileAgent Implementation**
+    *   *Implementation*: `subprocess` wrappers for `find`, `rsync`, and `fdupes`. Add `easyocr` for image-to-text triggers only when needed.
+*   **Task 2.2: SysAgent Implementation**
+    *   *Implementation*: `psutil` integration and `systemctl` wrapper with an elevation (sudo) prompt bridge to the GUI.
+*   **Task 2.3: GitAgent Implementation**
+    *   *Implementation*: Utilize `gh` (GitHub CLI) for robust auth and PR management, alongside raw `git` for local commits.
+
+### **PHASE 3: EXTERNAL & ORCHESTRATION (Week 3)**
+*Objective: Network capabilities and complex multi-step workflow logic.*
+
+*   **Task 3.1: NetAgent & WebAgent**
+    *   *Implementation*: Deep-linking via `xdg-open` and network diagnostics via `nmap`. Focus on lightweight shortcuts rather than heavy browser automation.
+*   **Task 3.2: YAML Workflow Engine**
+    *   *Implementation*: Sequential execution logic with failure-handling (e.g., "rollback if backup fails").
+*   **Task 3.3: Safety & Sandboxing**
+    *   *Implementation*: Optional `firejail` profiling for agent-executed commands to ensure OS integrity.
+
+### **PHASE 4: GUI & PRODUCTION POLISH (Week 4)**
+*Objective: Stunning visuals and seamless distribution.*
+
+*   **Task 4.1: The LIA Control Center**
+    *   *Implementation*: Flet GUI with a "Spotlight-style" command palette and real-time agent status feeds.
+*   **Task 4.2: Studio & Marketplace**
+    *   *Implementation*: No-code drag-and-drop workflow builder utilizing the YAML spec.
+*   **Task 4.3: Deployment Packaging**
+    *   *Implementation*: Build and verify AppImage/Flatpak bundles with all Python dependencies isolated.
 
 ## **📈 14. BUSINESS METRICS**
 
