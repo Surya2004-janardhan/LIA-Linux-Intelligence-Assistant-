@@ -3,16 +3,17 @@ from core.llm_bridge import llm_bridge
 from core.logger import logger
 from core.orchestrator import Orchestrator
 from memory.indexer import indexer
-from agents.mock_agent import MockAgent
+from agents.file_agent import FileAgent
+from agents.sys_agent import SysAgent
 import sys
 import json
 
 def main():
     logger.info("Initializing LIA...")
     
-    # Initialize some mock agents for Phase 3 testing
-    file_agent = MockAgent("FileAgent", ["File search", "Organization", "Backup"])
-    sys_agent = MockAgent("SysAgent", ["Process control", "Health checks"])
+    # Initialize Real Agents for Phase 4
+    file_agent = FileAgent()
+    sys_agent = SysAgent()
     orchestrator = Orchestrator([file_agent, sys_agent])
     
     if len(sys.argv) > 1:
@@ -58,7 +59,7 @@ def main():
     print(f"Provider: {provider}")
     print(f"Model: {config.get('llm.model')}")
     print("Memory: Ready")
-    print("Orchestrator: Ready (Mock Mode)")
+    print("Orchestrator: Ready (6 Core Agents System)")
     print("------------------\n")
 
 if __name__ == "__main__":
