@@ -1,0 +1,9 @@
+flet
+litellm
+langchain
+sentence-transformers
+psutil
+sqlite-utils
+pyyaml
+python-dotenv
+requests

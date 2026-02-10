@@ -1,0 +1,16 @@
+llm:
+  provider: "ollama"  # or "openai", "anthropic", etc.
+  model: "llama3"     # default model for local use
+  base_url: "http://localhost:11434" # default Ollama endpoint
+
+memory:
+  path: "memory/lia_memory.db"
+  index_path: "memory/vector_index"
+
+ui:
+  theme: "dark"
+  fps: 60
+
+security:
+  dry_run: true
+  sandbox_enabled: false
