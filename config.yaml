@@ -14,3 +14,15 @@ ui:
 security:
   dry_run: true
   sandbox_enabled: false
+
+permissions:
+  allowed_paths:
+    - "c:/Users/chint/Documents"
+    - "c:/Users/chint/Downloads"
+    - "c:/Users/chint/Desktop"
+    - "."
+
+connections:
+  gmail_enabled: false
+  calendar_enabled: false
+  custom_api_enabled: false

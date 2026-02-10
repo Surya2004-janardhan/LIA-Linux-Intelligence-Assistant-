@@ -9,6 +9,7 @@ from agents.sys_agent import SysAgent
 from agents.git_agent import GitAgent
 from agents.net_agent import NetAgent
 from agents.web_agent import WebAgent
+from agents.connection_agent import ConnectionAgent
 from ui.gui import start_gui
 from ui.tui import start_tui
 from core.guardian import guardian
@@ -27,7 +28,8 @@ def main():
         SysAgent(),
         GitAgent(),
         NetAgent(),
-        WebAgent()
+        WebAgent(),
+        ConnectionAgent()
     ]
     orchestrator = Orchestrator(agents)
     workflow_engine = WorkflowEngine(orchestrator)
@@ -87,7 +89,7 @@ def main():
         print(f"Provider: {provider}")
         print(f"Model: {config.get('llm.model')}")
         print("Memory: Ready")
-        print("Orchestrator: Ready (6 Core Agents System)")
+        print("Orchestrator: Ready (6 Specialist Agents System)")
         print("------------------\n")
 
 if __name__ == "__main__":

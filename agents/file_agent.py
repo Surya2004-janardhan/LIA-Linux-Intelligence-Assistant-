@@ -5,6 +5,7 @@ from typing import List
 from agents.base_agent import LIAAgent
 from core.logger import logger
 from core.llm_bridge import llm_bridge
+from core.permissions import permission_manager
 
 class FileAgent(LIAAgent):
     def __init__(self):
@@ -15,6 +16,8 @@ class FileAgent(LIAAgent):
         self.register_tool("find_files", self.find_files, "Finds files based on a pattern")
 
     def list_directory(self, path: str = "."):
+        if not permission_manager.is_path_allowed(path):
+            return "Permission Denied: LIA does not have access to this folder."
         try:
             items = os.listdir(path)
             return "\n".join(items) if items else "Directory is empty."
@@ -22,6 +25,8 @@ class FileAgent(LIAAgent):
             return f"Error: {str(e)}"
 
     def move_file(self, src: str, dest: str):
+        if not (permission_manager.is_path_allowed(src) and permission_manager.is_path_allowed(dest)):
+            return "Permission Denied: Access restricted for one or both paths."
         try:
             shutil.move(src, dest)
             return f"Successfully moved {src} to {dest}"
@@ -29,6 +34,8 @@ class FileAgent(LIAAgent):
             return f"Error: {str(e)}"
 
     def create_directory(self, path: str):
+        if not permission_manager.is_path_allowed(path):
+            return "Permission Denied: Cannot create directory in restricted path."
         try:
             os.makedirs(path, exist_ok=True)
             return f"Directory created: {path}"
