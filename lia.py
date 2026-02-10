@@ -5,16 +5,24 @@ from core.orchestrator import Orchestrator
 from memory.indexer import indexer
 from agents.file_agent import FileAgent
 from agents.sys_agent import SysAgent
+from agents.git_agent import GitAgent
+from agents.net_agent import NetAgent
+from agents.web_agent import WebAgent
 import sys
 import json
 
 def main():
     logger.info("Initializing LIA...")
     
-    # Initialize Real Agents for Phase 4
-    file_agent = FileAgent()
-    sys_agent = SysAgent()
-    orchestrator = Orchestrator([file_agent, sys_agent])
+    # Initialize all Specialist Agents
+    agents = [
+        FileAgent(),
+        SysAgent(),
+        GitAgent(),
+        NetAgent(),
+        WebAgent()
+    ]
+    orchestrator = Orchestrator(agents)
     
     if len(sys.argv) > 1:
         cmd = sys.argv[1]
