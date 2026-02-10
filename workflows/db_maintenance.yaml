@@ -1,0 +1,12 @@
+name: "Database Maintenance"
+description: "Backup databases and verify integrity."
+steps:
+  - id: 1
+    agent: "DatabaseAgent"
+    task: "backup database at memory/audit_log.db to backups/audit_backup.db"
+  - id: 2
+    agent: "DatabaseAgent"
+    task: "backup database at memory/central_intelligence.db to backups/central_backup.db"
+  - id: 3
+    agent: "FileAgent"
+    task: "list files in backups directory"

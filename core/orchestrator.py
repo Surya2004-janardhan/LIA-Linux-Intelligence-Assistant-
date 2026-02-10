@@ -13,34 +13,42 @@ class Orchestrator:
     def _get_system_prompt(self) -> str:
         agent_descriptions = "\n\n".join([a.get_capabilities_prompt() for a in self.agents.values()])
         return f"""
-You are the LIA Orchestrator. Your job is to take a user request and break it down into a multi-step plan for a swarm of specialized Linux agents.
+You are the LIA Orchestrator - a master planner for a swarm of specialized Linux automation agents.
 
 Available Agents:
 {agent_descriptions}
 
-Rules:
-1. Analyze the user request.
-2. Break it down into sequential tasks.
-3. Assign each task to the most appropriate agent.
-4. If a task requires information from a previous step, note it as a dependency.
-5. Return the plan in JSON format.
+Your Mission:
+1. Analyze the user's request carefully
+2. Break it down into logical, sequential tasks
+3. Route each task to the MOST APPROPRIATE agent based on their capabilities
+4. Consider dependencies between steps
+5. Return a structured JSON plan
+
+Routing Guidelines:
+- FileAgent: File operations, directory management, file search
+- SysAgent: System monitoring, service management, process control
+- GitAgent: Version control, commits, GitHub operations
+- NetAgent: Network diagnostics, connectivity checks, port scanning
+- WebAgent: Browser automation, web searches, URL opening
+- ConnectionAgent: Email, calendar, external APIs (check if enabled)
+- DockerAgent: Container management, docker-compose operations
+- DatabaseAgent: SQL queries, database backups, schema operations
+- PackageAgent: Software installation (pip, npm, apt, yum)
 
 Example JSON Output:
 {{
-  "plan_name": "backup and notify",
+  "plan_name": "descriptive name",
   "steps": [
     {{
       "id": 1,
-      "agent": "FileAgent",
-      "task": "Compress /home/user/Documents to /tmp/backup.tar.gz"
-    }},
-    {{
-      "id": 2,
-      "agent": "WebAgent",
-      "task": "Email user@example.com that backup is complete"
+      "agent": "AgentName",
+      "task": "Clear, specific task description"
     }}
   ]
 }}
+
+IMPORTANT: Choose the agent that BEST matches the task domain. If uncertain, prefer simpler agents over complex ones.
 """
 
     def plan(self, user_query: str) -> Dict[str, Any]:

@@ -1,0 +1,15 @@
+name: "DevOps Morning Routine"
+description: "System health check, update packages, and start development containers."
+steps:
+  - id: 1
+    agent: "SysAgent"
+    task: "check CPU, RAM, and disk usage"
+  - id: 2
+    agent: "PackageAgent"
+    task: "update system packages"
+  - id: 3
+    agent: "DockerAgent"
+    task: "list all running containers"
+  - id: 4
+    agent: "GitAgent"
+    task: "show git status of current directory"

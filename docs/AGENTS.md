@@ -1,33 +1,26 @@
-# LIA Agent System Documentation
+# LIA Agent Ecosystem
 
-## Overview
-LIA employs a **6-Agent Specialist Swarm** architecture. Each agent is a domain expert with its own tools and capabilities.
+LIA employs a **Dynamic Multi-Agent Swarm** architecture. Each agent is a domain specialist with its own tools and capabilities. The system is designed to be **extensible**—new agents can be added without modifying core logic.
 
 ---
 
-## 1. FileAgent
+## Core Agents
+
+### 1. FileAgent
 **Domain**: Filesystem operations  
-**Capabilities**:
-- List directory contents
-- Move/copy files
-- Create directories
-- Find files by pattern
-- **Permission-Aware**: Only accesses whitelisted folders
+**Tools**: list_directory, move_file, create_directory, find_files  
+**Security**: Permission-aware (only accesses whitelisted folders)
 
 **Example Tasks**:
-- "organize my Downloads folder by file type"
+- "organize my Downloads by file type"
 - "find all PDFs in Documents"
 - "create a backup folder"
 
 ---
 
-## 2. SysAgent
+### 2. SysAgent
 **Domain**: System monitoring and service management  
-**Capabilities**:
-- CPU/RAM/Disk usage monitoring
-- Service control (systemctl on Linux)
-- Process management
-- Health checks
+**Tools**: CPU/RAM/Disk monitoring, systemctl (Linux), process management
 
 **Example Tasks**:
 - "check my RAM usage"
@@ -36,12 +29,9 @@ LIA employs a **6-Agent Specialist Swarm** architecture. Each agent is a domain 
 
 ---
 
-## 3. GitAgent
+### 3. GitAgent
 **Domain**: Version control and code management  
-**Capabilities**:
-- Git status and commits
-- GitHub CLI integration (gh)
-- PR listing and management
+**Tools**: git status, git commit, GitHub CLI (gh) integration
 
 **Example Tasks**:
 - "commit all changes with message 'update docs'"
@@ -50,12 +40,9 @@ LIA employs a **6-Agent Specialist Swarm** architecture. Each agent is a domain 
 
 ---
 
-## 4. NetAgent
+### 4. NetAgent
 **Domain**: Network diagnostics  
-**Capabilities**:
-- Ping hosts
-- Port scanning (nmap)
-- Network connectivity checks
+**Tools**: ping, nmap port scanning, connectivity checks
 
 **Example Tasks**:
 - "ping google.com"
@@ -64,12 +51,9 @@ LIA employs a **6-Agent Specialist Swarm** architecture. Each agent is a domain 
 
 ---
 
-## 5. WebAgent
+### 5. WebAgent
 **Domain**: Browser automation and web navigation  
-**Capabilities**:
-- Open URLs
-- Google search
-- Deep linking to applications
+**Tools**: open URLs, Google search, deep linking
 
 **Example Tasks**:
 - "search google for python tutorials"
@@ -78,14 +62,12 @@ LIA employs a **6-Agent Specialist Swarm** architecture. Each agent is a domain 
 
 ---
 
-## 6. ConnectionAgent
-**Domain**: Third-party integrations  
-**Capabilities**:
-- Gmail access (when enabled)
-- Calendar management (when enabled)
-- Custom API bridges
+## Integration Agents
 
-**Security**: All connections are **disabled by default** and require explicit user permission in `config.yaml`.
+### 6. ConnectionAgent
+**Domain**: Third-party API integrations  
+**Tools**: Gmail, Calendar, Custom APIs  
+**Security**: All connections disabled by default, require explicit permission
 
 **Example Tasks**:
 - "check my recent emails"
@@ -93,43 +75,143 @@ LIA employs a **6-Agent Specialist Swarm** architecture. Each agent is a domain 
 
 ---
 
+### 7. DockerAgent
+**Domain**: Container orchestration  
+**Tools**: docker ps, docker start/stop, docker-compose up
+
+**Example Tasks**:
+- "list all running containers"
+- "start my postgres container"
+- "run docker-compose in the current directory"
+
+---
+
+### 8. DatabaseAgent
+**Domain**: Database operations  
+**Tools**: SQLite queries, database backups, schema inspection
+
+**Example Tasks**:
+- "query the users table in myapp.db"
+- "backup my database to /backups"
+- "show me all tables in the database"
+
+---
+
+### 9. PackageAgent
+**Domain**: Software package management  
+**Tools**: pip, npm, apt, yum
+
+**Example Tasks**:
+- "install the requests library"
+- "update system packages"
+- "install express via npm"
+
+---
+
 ## Agent Coordination
 
-The **Orchestrator** acts as the central brain:
+### The Orchestrator
+The **Orchestrator** acts as the central intelligence:
 1. Receives natural language query
 2. Consults **Central Memory** for system instructions
-3. Generates a multi-step JSON plan
-4. Routes tasks to appropriate agents
-5. Can execute **sequentially** or **in parallel** (async mode)
+3. Analyzes which agents are needed
+4. Generates a multi-step JSON plan
+5. Routes tasks to appropriate specialists
+6. Supports **sequential** or **parallel** execution
 
-### Parallel Execution
-For complex workflows, LIA can run multiple agents concurrently:
-```python
-# Sequential (default)
-results = orchestrator.run("check RAM and ping google")
+### Intelligent Routing
+The Orchestrator uses the LLM to match tasks to agents based on:
+- Agent capability descriptions
+- Task keywords and context
+- Historical success patterns (stored in Central Memory)
 
-# Parallel (async)
-results = await orchestrator.run_async("check RAM and ping google")
+### Example Routing
+**Query**: "Check my system health and backup the database"
+
+**Plan**:
+```json
+{
+  "steps": [
+    {"id": 1, "agent": "SysAgent", "task": "check RAM and disk usage"},
+    {"id": 2, "agent": "DatabaseAgent", "task": "backup database to /backups"}
+  ]
+}
 ```
 
 ---
 
-## Central Memory System
+## Execution Modes
 
-LIA maintains a **tiered memory architecture**:
+### Sequential (Default)
+```python
+results = orchestrator.run("check RAM and ping google")
+```
+Agents execute one after another. Safe and predictable.
 
-### Tier 1: Metadata Search (SQLite)
-Fast lookups for file paths, user preferences, and agent history.
+### Parallel (Async)
+```python
+results = await orchestrator.run_async("check RAM and ping google")
+```
+Independent agents run concurrently for faster execution.
 
-### Tier 2: Semantic Memory (FAISS)
-Vector embeddings for context-aware file search.
+---
 
-### Tier 3: System Prompts
-Global instructions that guide all agent behavior. Similar to Cursor/Claude's system-level directives.
+## Adding New Agents
 
-**Location**: `memory/central_intelligence.db`
+LIA's architecture makes it trivial to add new specialists:
 
-**Key Features**:
-- Cross-session persistence
-- Frequency tracking (learns what you use most)
-- Category-based organization
+1. **Create a new agent file** in `agents/`
+2. **Inherit from `LIAAgent`**
+3. **Register tools** in `__init__`
+4. **Implement `execute()`** method
+5. **Add to the swarm** in `lia.py`
+
+**Example**:
+```python
+from agents.base_agent import LIAAgent
+
+class WeatherAgent(LIAAgent):
+    def __init__(self):
+        super().__init__("WeatherAgent", ["Weather forecasts", "Climate data"])
+        self.register_tool("get_weather", self.get_weather, "Gets weather for a city")
+    
+    def get_weather(self, city: str):
+        # Implementation here
+        pass
+    
+    def execute(self, task: str) -> str:
+        # LLM-based tool selection
+        pass
+```
+
+Then add to `lia.py`:
+```python
+agents = [
+    FileAgent(),
+    SysAgent(),
+    # ... other agents
+    WeatherAgent()  # New agent automatically integrated
+]
+```
+
+The Orchestrator will automatically discover and use the new agent!
+
+---
+
+## Agent Communication
+
+Agents can share context through:
+- **Central Memory**: Store/retrieve cross-session data
+- **Audit Logs**: Review what other agents have done
+- **Workflow Variables**: Pass data between steps
+
+**Example Workflow with Data Passing**:
+```yaml
+steps:
+  - id: 1
+    agent: "FileAgent"
+    task: "find the latest backup file"
+  - id: 2
+    agent: "DatabaseAgent"
+    task: "restore from {{backup_file}}"
+```

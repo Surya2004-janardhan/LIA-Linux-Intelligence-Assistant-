@@ -10,6 +10,9 @@ from agents.git_agent import GitAgent
 from agents.net_agent import NetAgent
 from agents.web_agent import WebAgent
 from agents.connection_agent import ConnectionAgent
+from agents.docker_agent import DockerAgent
+from agents.database_agent import DatabaseAgent
+from agents.package_agent import PackageAgent
 from ui.gui import start_gui
 from ui.tui import start_tui
 from core.guardian import guardian
@@ -22,14 +25,17 @@ def main():
     # Start the Guardian background monitor
     guardian.start()
     
-    # Initialize all Specialist Agents
+    # Initialize all Specialist Agents (Dynamic Swarm)
     agents = [
         FileAgent(),
         SysAgent(),
         GitAgent(),
         NetAgent(),
         WebAgent(),
-        ConnectionAgent()
+        ConnectionAgent(),
+        DockerAgent(),
+        DatabaseAgent(),
+        PackageAgent()
     ]
     orchestrator = Orchestrator(agents)
     workflow_engine = WorkflowEngine(orchestrator)
@@ -89,7 +95,7 @@ def main():
         print(f"Provider: {provider}")
         print(f"Model: {config.get('llm.model')}")
         print("Memory: Ready")
-        print("Orchestrator: Ready (6 Specialist Agents System)")
+        print(f"Orchestrator: Ready ({len(orchestrator.agents)} Specialist Agents)")
         print("------------------\n")
 
 if __name__ == "__main__":
