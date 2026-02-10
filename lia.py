@@ -10,11 +10,16 @@ from agents.git_agent import GitAgent
 from agents.net_agent import NetAgent
 from agents.web_agent import WebAgent
 from ui.gui import start_gui
+from ui.tui import start_tui
+from core.guardian import guardian
 import sys
 import json
 
 def main():
     logger.info("Initializing LIA...")
+    
+    # Start the Guardian background monitor
+    guardian.start()
     
     # Initialize all Specialist Agents
     agents = [
@@ -62,6 +67,11 @@ def main():
         if cmd == "gui":
             logger.info("Phase 7: Launching LIA Control Center...")
             start_gui(orchestrator, workflow_engine)
+            return
+
+        if cmd == "tui":
+            logger.info("Phase 8: Launching LIA Terminal Interface...")
+            start_tui(orchestrator, workflow_engine)
             return
 
     # Default logic: Launch GUI if no args, else show help
