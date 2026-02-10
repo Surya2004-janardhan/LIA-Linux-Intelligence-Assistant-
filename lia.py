@@ -9,6 +9,7 @@ from agents.sys_agent import SysAgent
 from agents.git_agent import GitAgent
 from agents.net_agent import NetAgent
 from agents.web_agent import WebAgent
+from ui.gui import start_gui
 import sys
 import json
 
@@ -58,32 +59,26 @@ def main():
             print("-------------------------------\n")
             return
 
-        if cmd == "ask":
-            query = " ".join(sys.argv[2:])
-            logger.info(f"Phase 3: Orchestrating for '{query}'...")
-            plan = orchestrator.plan(query)
-            print("\n--- LIA PLAN ---")
-            print(json.dumps(plan, indent=2))
-            
-            confirm = input("\nExecute this plan? (y/n): ")
-            if confirm.lower() == 'y':
-                results = orchestrator.run(query)
-                print("\n--- EXECUTION RESULTS ---")
-                for res in results:
-                    print(f"Step {res['step']}: {res['result']}")
+        if cmd == "gui":
+            logger.info("Phase 7: Launching LIA Control Center...")
+            start_gui(orchestrator, workflow_engine)
             return
 
-    # Default logic (Phase 1)
-    provider = config.get('llm.provider')
-    logger.info(f"LLM Provider: {provider}")
-    logger.info("LIA Ready. Use 'ask <query>' to test Phase 3.")
-    
-    print("\n--- LIA STATUS ---")
-    print(f"Provider: {provider}")
-    print(f"Model: {config.get('llm.model')}")
-    print("Memory: Ready")
-    print("Orchestrator: Ready (6 Core Agents System)")
-    print("------------------\n")
+    # Default logic: Launch GUI if no args, else show help
+    if len(sys.argv) == 1:
+        logger.info("No arguments provided. Launching LIA Control Center...")
+        start_gui(orchestrator, workflow_engine)
+    else:
+        provider = config.get('llm.provider')
+        logger.info(f"LLM Provider: {provider}")
+        logger.info("LIA Ready. Use 'gui', 'index', 'run', or 'ask <query>'.")
+        
+        print("\n--- LIA STATUS ---")
+        print(f"Provider: {provider}")
+        print(f"Model: {config.get('llm.model')}")
+        print("Memory: Ready")
+        print("Orchestrator: Ready (6 Core Agents System)")
+        print("------------------\n")
 
 if __name__ == "__main__":
     main()
