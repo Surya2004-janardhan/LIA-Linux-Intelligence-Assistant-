@@ -1,0 +1,15 @@
+name: "Friday Night Routine"
+description: "Organize week, backup system info, and check connectivity."
+steps:
+  - id: 1
+    agent: "FileAgent"
+    task: "create a directory named 'weekly_backup'"
+  - id: 2
+    agent: "SysAgent"
+    task: "check my ram usage and save the report to status.txt"
+  - id: 3
+    agent: "NetAgent"
+    task: "ping google.com to check connectivity"
+  - id: 4
+    agent: "WebAgent"
+    task: "open https://github.com to check commits"

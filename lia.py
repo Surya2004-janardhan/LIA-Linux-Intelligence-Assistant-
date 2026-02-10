@@ -2,6 +2,7 @@ from core.config import config
 from core.llm_bridge import llm_bridge
 from core.logger import logger
 from core.orchestrator import Orchestrator
+from core.workflow_engine import WorkflowEngine
 from memory.indexer import indexer
 from agents.file_agent import FileAgent
 from agents.sys_agent import SysAgent
@@ -23,6 +24,7 @@ def main():
         WebAgent()
     ]
     orchestrator = Orchestrator(agents)
+    workflow_engine = WorkflowEngine(orchestrator)
     
     if len(sys.argv) > 1:
         cmd = sys.argv[1]
@@ -40,6 +42,19 @@ def main():
             print("\n--- SEMANTIC SEARCH RESULTS ---")
             for res in results:
                 print(f"Score: {res['score']:.4f} | Path: {res['metadata']['path']}")
+            print("-------------------------------\n")
+            return
+
+        if cmd == "run":
+            workflow_name = sys.argv[2] if len(sys.argv) > 2 else "friday_routine"
+            logger.info(f"Phase 6: Executing workflow '{workflow_name}'...")
+            results = workflow_engine.execute_workflow(workflow_name)
+            print(f"\n--- WORKFLOW RESULTS: {workflow_name} ---")
+            for res in results:
+                if "error" in res:
+                    print(f"Step {res['step']}: ❌ {res['error']}")
+                else:
+                    print(f"Step {res['step']}: ✅ {res['result']}")
             print("-------------------------------\n")
             return
 
