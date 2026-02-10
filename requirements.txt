@@ -1,13 +1,23 @@
-flet
-litellm
-langchain
-sentence-transformers
-psutil
-sqlite-utils
-PyYAML
-python-dotenv
-requests
-aiohttp
-faiss-cpu
-numpy
-textual
+# Core
+flet>=0.21.0,<1.0.0
+litellm>=1.30.0,<2.0.0
+PyYAML>=6.0,<7.0
+python-dotenv>=1.0.0,<2.0.0
+
+# AI / Embeddings
+langchain>=0.1.0,<1.0.0
+sentence-transformers>=2.2.0,<3.0.0
+faiss-cpu>=1.7.4,<2.0.0
+numpy>=1.24.0,<2.0.0
+
+# System
+psutil>=5.9.0,<6.0.0
+requests>=2.31.0,<3.0.0
+aiohttp>=3.9.0,<4.0.0
+
+# TUI
+textual>=0.50.0,<1.0.0
+rich>=13.0.0,<14.0.0
+
+# Database
+sqlite-utils>=3.35,<4.0
