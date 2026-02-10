@@ -2,6 +2,7 @@ import json
 from typing import List, Dict, Any
 from core.llm_bridge import llm_bridge
 from core.logger import logger
+from core.audit import audit_manager
 from agents.base_agent import LIAAgent
 
 class Orchestrator:
@@ -84,6 +85,10 @@ Example JSON Output:
                 logger.info(f"Executing Step {step['id']}: [{agent_name}] -> {task}")
                 agent = self.agents[agent_name]
                 result = agent.execute(task)
+                
+                # Audit Log
+                audit_manager.log_action(agent_name, task, result)
+                
                 results.append({"step": step['id'], "result": result})
             else:
                 logger.warning(f"Agent {agent_name} not found for step {step['id']}")
