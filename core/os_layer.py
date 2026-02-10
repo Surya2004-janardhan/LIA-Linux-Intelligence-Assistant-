@@ -1,5 +1,5 @@
 """
-LIA OS Layer — Linux-First Abstraction.
+LIA OS Layer — Linux-First Abstraction (Async).
 
 This module provides deep Linux integration:
 1. Distro detection via /etc/os-release
@@ -7,14 +7,15 @@ This module provides deep Linux integration:
 3. System load via /proc/loadavg
 4. Signal handling & process management
 5. Safety Guard integration
+6. ASYNC I/O for true concurrency
 """
 import os
 import sys
 import signal
 import platform
-import subprocess
+import asyncio
 import threading
-from typing import Optional, Callable, List, Union
+from typing import Optional, Callable, List, Union, Dict
 from core.logger import logger
 
 # Lazy import
@@ -55,15 +56,13 @@ class OSLayer:
         self.distro = self._detect_distro() if self.is_linux else "N/A"
         self.python_version = platform.python_version()
         
-        self._active_processes = []
         self._shutdown_hooks = []
         self._is_shutting_down = False
         
         self._register_signals()
-        logger.info(f"OS Layer: {self.distro} ({self.kernel}) on {self.arch}")
+        logger.info(f"OS Layer (Async): {self.distro} ({self.kernel}) on {self.arch}")
 
     def _detect_distro(self) -> str:
-        """Parses /etc/os-release for detailed distro info."""
         try:
             with open("/etc/os-release") as f:
                 data = {}
@@ -73,13 +72,6 @@ class OSLayer:
                         data[k] = v.strip('"')
             return f"{data.get('NAME', 'Linux')} {data.get('VERSION_ID', '')}"
         except Exception:
-            try:
-                # Fallback to lsb_release
-                res = subprocess.run(["lsb_release", "-d", "-s"], capture_output=True, text=True)
-                if res.returncode == 0:
-                    return res.stdout.strip()
-            except FileNotFoundError:
-                pass
             return "Linux (Unknown Distro)"
 
     def _register_signals(self):
@@ -95,18 +87,14 @@ class OSLayer:
         self._is_shutting_down = True
         logger.info(f"Signal {signum} received. Shutting down...")
         
-        # Kill children
-        for proc in self._active_processes:
-            try:
-                proc.terminate()
-                proc.wait(timeout=3)
-            except Exception:
-                proc.kill()
-        
         # Run hooks
         for hook in self._shutdown_hooks:
             try:
-                hook()
+                if asyncio.iscoroutinefunction(hook):
+                    # Attempt to schedule if loop is running, else standard calls
+                    pass 
+                else:
+                    hook()
             except Exception:
                 pass
         
@@ -115,8 +103,11 @@ class OSLayer:
     def register_shutdown_hook(self, hook: Callable):
         self._shutdown_hooks.append(hook)
 
-    def run_command(self, cmd: Union[List[str], str], timeout: int = 30, cwd: str = None, 
-                    env: dict = None, shell: bool = False) -> dict:
+    async def run_command(self, cmd: Union[List[str], str], timeout: int = 30, cwd: str = None, 
+                          env: dict = None, shell: bool = False) -> Dict:
+        """
+        Async command execution.
+        """
         import time
         start = time.monotonic()
         
@@ -127,66 +118,72 @@ class OSLayer:
         
         if assessment["risk_level"] == "BLOCKED":
             return {
-                "success": False, 
-                "stdout": "", 
+                "success": False, "stdout": "", 
                 "stderr": f"SAFETY BLOCK: {assessment['reason']}", 
-                "returncode": -1, 
-                "duration_ms": 0,
-                "timed_out": False
+                "returncode": -1, "duration_ms": 0, "timed_out": False
             }
         
         # Determine shell usage
-        use_shell = shell
-        if isinstance(cmd, str):
-            use_shell = True
+        program = cmd
+        args = []
+        if isinstance(cmd, list):
+            program = cmd[0]
+            args = cmd[1:]
         
+        if shell and isinstance(cmd, list):
+            cmd = " ".join(cmd)
+            
         # Prepare env
         run_env = os.environ.copy()
         if env:
             run_env.update(env)
             
         try:
-            proc = subprocess.Popen(
-                cmd,
-                stdout=subprocess.PIPE,
-                stderr=subprocess.PIPE,
-                text=True,
-                cwd=cwd,
-                env=run_env,
-                shell=use_shell,
-                start_new_session=True if self.is_linux else False  # Setsid on Linux
-            )
-            self._active_processes.append(proc)
+            if shell:
+                proc = await asyncio.create_subprocess_shell(
+                    cmd,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=cwd,
+                    env=run_env
+                )
+            else:
+                proc = await asyncio.create_subprocess_exec(
+                    program, *args,
+                    stdout=asyncio.subprocess.PIPE,
+                    stderr=asyncio.subprocess.PIPE,
+                    cwd=cwd,
+                    env=run_env
+                )
             
             try:
-                stdout, stderr = proc.communicate(timeout=timeout)
-            except subprocess.TimeoutExpired:
-                # Murder the process group on Linux to kill children too
-                if self.is_linux:
-                    os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
-                else:
+                stdout_data, stderr_data = await asyncio.wait_for(proc.communicate(), timeout=timeout)
+                stdout = stdout_data.decode().strip() if stdout_data else ""
+                stderr = stderr_data.decode().strip() if stderr_data else ""
+                
+                return {
+                    "success": proc.returncode == 0,
+                    "stdout": stdout,
+                    "stderr": stderr,
+                    "returncode": proc.returncode,
+                    "duration_ms": int((time.monotonic() - start) * 1000),
+                    "timed_out": False
+                }
+            except asyncio.TimeoutError:
+                try:
                     proc.kill()
-                stdout, stderr = proc.communicate()
+                    await proc.communicate()
+                except:
+                    pass
                 return {
                     "success": False,
-                    "stdout": stdout,
+                    "stdout": "",
                     "stderr": f"TIMEOUT ({timeout}s)",
                     "returncode": -1,
                     "duration_ms": int((time.monotonic() - start) * 1000),
                     "timed_out": True
                 }
-            finally:
-                if proc in self._active_processes:
-                    self._active_processes.remove(proc)
-            
-            return {
-                "success": proc.returncode == 0,
-                "stdout": stdout.strip(),
-                "stderr": stderr.strip(),
-                "returncode": proc.returncode,
-                "duration_ms": int((time.monotonic() - start) * 1000),
-                "timed_out": False
-            }
+                
         except Exception as e:
             return {
                 "success": False, 
@@ -200,7 +197,6 @@ class OSLayer:
     # ─── LINUX SPECIFICS ──────────────────────────────────────────
 
     def get_load_avg(self) -> str:
-        """Reads /proc/loadavg directly."""
         if self.is_linux:
             try:
                 with open("/proc/loadavg") as f:
@@ -225,18 +221,14 @@ class OSLayer:
 
     def get_package_manager(self) -> str:
         if self.is_linux:
-            # Check most common first
             if os.path.exists("/usr/bin/apt-get"): return "apt"
             if os.path.exists("/usr/bin/dnf"): return "dnf"
             if os.path.exists("/usr/bin/pacman"): return "pacman"
             if os.path.exists("/usr/bin/zypper"): return "zypper"
-            if os.path.exists("/usr/bin/yum"): return "yum"
-            if os.path.exists("/sbin/apk"): return "apk"
         return "unknown"
     
     def get_service_cmd(self, service: str, action: str) -> Optional[List[str]]:
         if self.is_linux:
-            # Check if systemd triggers are available
             return ["systemctl", action, service]
         return None
 

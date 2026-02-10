@@ -15,7 +15,6 @@ class Orchestrator:
         self.history = []
 
     def _get_system_prompt(self, context: str = "") -> str:
-        """Auto-generates routing from registered agents + injects system context."""
         agent_descriptions = "\n".join([f"- {a.get_capabilities_prompt()}" for a in self.agents.values()])
         
         prompt = f"""You are the LIA Orchestrator. Break user requests into tasks for specialized agents.
@@ -33,8 +32,7 @@ Rules: Pick the BEST agent per task. Use exact agent names."""
         
         return prompt
 
-    def plan(self, user_query: str) -> Dict[str, Any]:
-        """Uses LLM to generate a plan, with system context and RAG history."""
+    async def plan(self, user_query: str) -> Dict[str, Any]:
         try:
             if not user_query or not user_query.strip():
                 return {"error": "Empty query provided", "steps": []}
@@ -49,7 +47,7 @@ Rules: Pick the BEST agent per task. Use exact agent names."""
                 for cmd in past_commands[:2]:
                     rag_hint += f"  Query: {cmd['query']} → Agent: {cmd['agent']}, Tool: {cmd['tool']}\n"
             
-            # 2. Gather system context
+            # 2. Gather system context (Sync for now, or make context engine async)
             context = context_engine.get_context(user_query)
             
             # 3. Build prompt
@@ -62,12 +60,13 @@ Rules: Pick the BEST agent per task. Use exact agent names."""
                 {"role": "user", "content": user_query}
             ]
             
-            response_text = llm_bridge.generate(messages, response_format={"type": "json_object"})
+            # LLM call (wrapped for async)
+            response_text = await asyncio.to_thread(llm_bridge.generate, messages, {"type": "json_object"})
             
             if not response_text:
                 return {"error": "LLM returned empty response", "steps": []}
             
-            if "Error connecting to LLM" in response_text:
+            if "Error connecting" in response_text:
                 return {"error": response_text, "steps": []}
             
             # Clean response
@@ -85,21 +84,22 @@ Rules: Pick the BEST agent per task. Use exact agent names."""
             return plan
             
         except json.JSONDecodeError as e:
-            logger.error(f"JSON parse failed: {e}")
             return {"error": f"Invalid JSON from LLM: {str(e)}", "steps": []}
         except Exception as e:
-            logger.error(f"Planning error: {e}")
             return {"error": f"Unexpected error: {str(e)}", "steps": []}
 
-    def run(self, user_query: str):
-        """Executes the full plan with safety checks, feedback, and error isolation."""
+    async def run(self, user_query: str):
+        """Executes the full plan asynchronously."""
         try:
-            plan = self.plan(user_query)
+            plan = await self.plan(user_query)
             
             if "error" in plan:
                 return [{"step": 0, "result": f"Planning Error: {plan['error']}"}]
             
             results = []
+            
+            # For simplicity, sequential execution awaiting each step
+            # Could upgrade to concurrent execution if steps are independent
             
             for step in plan.get("steps", []):
                 agent_name = step.get("agent")
@@ -113,8 +113,8 @@ Rules: Pick the BEST agent per task. Use exact agent names."""
                     try:
                         logger.info(f"Step {step['id']}: [{agent_name}] -> {task}")
                         
-                        # Execute
-                        result = self.agents[agent_name].execute(task)
+                        # Execute Async
+                        result = await self.agents[agent_name].execute(task)
                         
                         # Record for RAG
                         success = "Error" not in str(result)
@@ -148,29 +148,3 @@ Rules: Pick the BEST agent per task. Use exact agent names."""
         except Exception as e:
             logger.error(f"Orchestrator run failed: {e}")
             return [{"step": 0, "result": f"Fatal Error: {str(e)}"}]
-
-    async def run_async(self, user_query: str):
-        """Parallel execution for independent agent tasks."""
-        plan = self.plan(user_query)
-        if "error" in plan:
-            return [{"step": 0, "result": f"Planning Error: {plan['error']}"}]
-        
-        tasks = []
-        for step in plan.get("steps", []):
-            agent_name = step.get("agent")
-            if agent_name in self.agents:
-                tasks.append(self._execute_step_async(step, self.agents[agent_name], user_query))
-        
-        return await asyncio.gather(*tasks)
-
-    async def _execute_step_async(self, step, agent, user_query):
-        try:
-            result = agent.execute(step['task'])
-            feedback_manager.record_command(
-                query=user_query, agent=agent.name,
-                tool="", command=step['task'], result=str(result)
-            )
-            audit_manager.log_action(agent.name, step['task'], result)
-            return {"step": step['id'], "result": result}
-        except Exception as e:
-            return {"step": step['id'], "result": f"Error: {str(e)}"}

@@ -22,11 +22,54 @@ from ui.gui import start_gui
 from ui.tui import start_tui
 from core.guardian import guardian
 import sys
+import asyncio
 
-def main():
-    logger.info("Initializing LIA (Linux Intelligence Agent)...")
+def _rich_print(text: str):
+    try:
+        from rich.console import Console
+        from rich.panel import Panel
+        console = Console()
+        console.print(Panel(text, border_style="cyan", padding=(0, 1)))
+    except ImportError:
+        print(text)
+
+def _print_results(results, title="LIA Response"):
+    try:
+        from rich.console import Console
+        from rich.panel import Panel
+        from rich.table import Table
+        
+        console = Console()
+        table = Table(show_header=True, header_style="bold cyan", 
+                      border_style="dim", pad_edge=False)
+        table.add_column("Step", style="dim", width=6)
+        table.add_column("Status", width=4)
+        table.add_column("Result", style="white")
+        
+        for res in results:
+            result_str = str(res.get('result', ''))
+            is_error = "Error" in result_str
+            status = "❌" if is_error else "✅"
+            style = "red" if is_error else "green"
+            table.add_row(str(res['step']), status, result_str[:200])
+        
+        console.print(Panel(table, title=f"[bold]{title}[/bold]", border_style="cyan"))
+    except ImportError:
+        print(f"\n{'═' * 50}")
+        print(f"  {title}")
+        print(f"{'═' * 50}")
+        for res in results:
+            status = "✅" if "Error" not in str(res.get('result', '')) else "❌"
+            print(f"  Step {res['step']}: {status} {res['result']}")
+        print(f"{'═' * 50}\n")
+
+async def async_main():
+    logger.info("Initializing LIA (Async)...")
     
-    # Register cleanup hooks for graceful shutdown
+    # Check setup (interactive prompt if needed)
+    central_memory._ensure_setup()
+    
+    # Register cleanup hooks
     os_layer.register_shutdown_hook(central_memory.close)
     os_layer.register_shutdown_hook(audit_manager.close)
     os_layer.register_shutdown_hook(feedback_manager.close)
@@ -34,7 +77,6 @@ def main():
     # Start background monitor
     guardian.start()
     
-    # Initialize agents (Dynamic Swarm)
     agents = [
         FileAgent(),
         SysAgent(),
@@ -52,43 +94,20 @@ def main():
     if len(sys.argv) > 1:
         cmd = sys.argv[1]
         
-        # ─── ASK ──────────────────────────────────────────────────
         if cmd == "ask":
             query = " ".join(sys.argv[2:])
             if not query:
                 print("Usage: python lia.py ask <your question>")
                 return
             logger.info(f"CLI Query: {query}")
-            results = orchestrator.run(query)
-            # Use rich output if available
-            try:
-                from rich.console import Console
-                from rich.panel import Panel
-                from rich.table import Table
-                
-                console = Console()
-                table = Table(show_header=True, header_style="bold cyan", border_style="dim")
-                table.add_column("Step", width=6)
-                table.add_column("Status", width=4)
-                table.add_column("Result", style="white")
-                
-                for res in results:
-                    status = "❌" if "Error" in str(res.get('result', '')) else "✅"
-                    table.add_row(str(res['step']), status, str(res['result'])[:200])
-                
-                console.print(Panel(table, title="LIA Response", border_style="cyan"))
-            except ImportError:
-                # Fallback
-                print(f"\n{'═' * 50}")
-                print(f"  LIA Response")
-                print(f"{'═' * 50}")
-                for res in results:
-                    status = "✅" if "Error" not in str(res.get('result', '')) else "❌"
-                    print(f"  Step {res['step']}: {status} {res['result']}")
-                print(f"{'═' * 50}\n")
+            results = await orchestrator.run(query)
+            _print_results(results)
             
-            # Prompt for feedback
+            # Feedback
             try:
+                # Use standard input for synchronous prompt (avoid blocking loop for long if possible)
+                # But input() blocks. In a real async CLI, we'd use aioconsole.
+                # Since this is a one-shot command, blocking input() at the END is acceptable.
                 rating = input("  Rate this response (1-5, or Enter to skip): ").strip()
                 if rating and rating.isdigit():
                     feedback_manager.rate_last_command(int(rating))
@@ -97,23 +116,15 @@ def main():
                 pass
             return
 
-        # ─── EXPLAIN ──────────────────────────────────────────────
         if cmd == "explain":
             command = " ".join(sys.argv[2:])
             if not command:
                 print("Usage: python lia.py explain <command>")
-                print('Example: python lia.py explain "grep -r foo . | awk \'{print $1}\'"')
                 return
             result = explain_command(command)
-            try: 
-                from rich.console import Console 
-                from rich.panel import Panel
-                Console().print(Panel(result, border_style="cyan", padding=(0, 1)))
-            except ImportError:
-                print(result)
+            _rich_print(result)
             return
 
-        # ─── HISTORY ──────────────────────────────────────────────
         if cmd == "history":
             history = feedback_manager.get_history(limit=20)
             if not history:
@@ -137,93 +148,46 @@ def main():
                     print(f"  {h['timestamp'][:19]} | {h['query'][:30]} | {h['agent']}")
             return
 
-        # ─── FEEDBACK STATS ───────────────────────────────────────
-        if cmd == "feedback":
-            stats = feedback_manager.get_feedback_stats()
-            print(f"Total Feedback: {stats['total_feedback']}")
-            print(f"Avg Rating:     {stats['avg_rating']} / 5")
-            print(f"Positive (4-5): {stats['positive']}")
-            print(f"Negative (1-2): {stats['negative']}")
-            return
-
-        # ─── INDEX ────────────────────────────────────────────────
-        if cmd == "index":
-            count = indexer.index_files(".")
-            print(f"✅ Indexed {count} files in the current directory.")
-            return
-
-        # ─── SEARCH ───────────────────────────────────────────────
-        if cmd == "search":
-            query = " ".join(sys.argv[2:])
-            if not query:
-                print("Usage: python lia.py search <query>")
-                return
-            results = indexer.search(query)
-            print("\n--- SEMANTIC SEARCH RESULTS ---")
-            for res in results:
-                print(f"Score: {res['score']:.4f} | Path: {res['metadata']['path']}")
-            print("-------------------------------\n")
-            return
-
-        # ─── STATUS ───────────────────────────────────────────────
         if cmd == "status":
             info = os_layer.get_system_summary()
             agent_count = len(orchestrator.agents)
             fb_stats = feedback_manager.get_feedback_stats()
-            try:
-                from rich.console import Console
-                from rich.panel import Panel
-                Console().print(Panel(
-                    f"LIA STATUS — {info['hostname']} (Linux Intelligence Agent)\n"
-                    f"{'─' * 35}\n"
-                    f"Distro:    {info.get('distro', 'Unknown')}\n"
-                    f"Kernel:    {info.get('kernel', 'Unknown')}\n"
-                    f"Arch:      {info['arch']}\n"
-                    f"Python:    {info['python']}\n"
-                    f"Agents:    {agent_count} specialists\n"
-                    f"Sandbox:   {'ON' if config.get('security.sandbox_enabled') else 'OFF'}\n"
-                    f"Feedback:  {fb_stats['total_feedback']} ratings (avg: {fb_stats['avg_rating']})\n"
-                    f"{'─' * 35}\n"
-                    f"Agents: {', '.join(orchestrator.agents.keys())}",
-                    title="System Status", border_style="green"
-                ))
-            except ImportError:
-                print(f"LIA STATUS — {info['hostname']} (Linux Intelligence Agent)")
-                print(f"Distro:    {info.get('distro', 'Unknown')}")
-                print(f"Kernel:    {info.get('kernel', 'Unknown')}")
-                print(f"Arch:      {info['arch']}")
-                print(f"Agents:    {agent_count}")
+            _rich_print(
+                f"LIA STATUS — {info['hostname']} (Linux Intelligence Agent)\n"
+                f"{'─' * 35}\n"
+                f"Distro:    {info.get('distro', 'Unknown')}\n"
+                f"Kernel:    {info.get('kernel', 'Unknown')}\n"
+                f"Arch:      {info['arch']}\n"
+                f"Agents:    {agent_count} specialists\n"
+                f"Sandbox:   {'ON' if config.get('security.sandbox_enabled') else 'OFF'}\n"
+                f"Feedback:  {fb_stats['total_feedback']} ratings\n"
+            )
             return
 
-        # ─── HELP ─────────────────────────────────────────────────
         if cmd in ("help", "--help", "-h"):
             print_help()
             return
-            
+
         print(f"Unknown command: '{cmd}'. Run 'lia help' for usage.")
         return
 
-    # Default logic (TUI/GUI if desired, or help)
+    # Default to GUI (not async-compatible yet without major refactor, fallback to help)
     print_help()
-
 
 def print_help():
     help_text = """
-LIA — Linux Intelligence Agent
+LIA — Linux Intelligence Agent (Async Core)
 
 COMMANDS:
   ask <query>         Execute tasks using natural language
-  explain <cmd>       Explain shell one-liners using LLM
-  history             Show past successful commands (RAG)
-  feedback            Show feedback statistics
-  status              Show distro, kernel, and agent status
-  search <query>      Semantic file search
-  index               Index current directory
+  explain <cmd>       Explain shell one-liners
+  history             Show command history
+  status              Show system status
+  help                Show this message
   
-EXAMPLES:
-  lia ask "why is my server laggy?"
-  lia ask "restart nginx and show logs"
-  lia explain "chmod 755 /var/www/html"
+SETUP:
+  On first run, LIA will ask for permission to access specific directories.
+  This 'Root Context' is customizable and prevents unauthorized access.
 """
     try:
         from rich.console import Console
@@ -232,6 +196,11 @@ EXAMPLES:
     except ImportError:
         print(help_text)
 
+def main():
+    try:
+        asyncio.run(async_main())
+    except KeyboardInterrupt:
+        logger.info("Interrupted by user.")
 
 if __name__ == "__main__":
     main()
