@@ -1,0 +1,51 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.backends._legacy:_Backend"
+
+[project]
+name = "lia-agent"
+version = "0.9.0"
+description = "Local Intelligence Agent — Privacy-first multi-agent AI system for OS automation"
+readme = "README.md"
+license = {file = "LICENSE"}
+requires-python = ">=3.10"
+keywords = ["ai", "agent", "automation", "local", "ollama", "llm"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: OS Independent",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: System :: Systems Administration",
+    "Topic :: Utilities",
+]
+
+dependencies = [
+    "flet>=0.21.0,<1.0.0",
+    "litellm>=1.30.0,<2.0.0",
+    "PyYAML>=6.0,<7.0",
+    "python-dotenv>=1.0.0,<2.0.0",
+    "langchain>=0.1.0,<1.0.0",
+    "sentence-transformers>=2.2.0,<3.0.0",
+    "faiss-cpu>=1.7.4,<2.0.0",
+    "numpy>=1.24.0,<2.0.0",
+    "psutil>=5.9.0,<6.0.0",
+    "requests>=2.31.0,<3.0.0",
+    "aiohttp>=3.9.0,<4.0.0",
+    "textual>=0.50.0,<1.0.0",
+    "rich>=13.0.0,<14.0.0",
+    "sqlite-utils>=3.35,<4.0",
+]
+
+[project.scripts]
+lia = "lia:main"
+
+[project.urls]
+Homepage = "https://github.com/your-username/LIA"
+Issues = "https://github.com/your-username/LIA/issues"
+
+[tool.setuptools.packages.find]
+include = ["agents*", "core*", "memory*", "ui*", "workflows*"]

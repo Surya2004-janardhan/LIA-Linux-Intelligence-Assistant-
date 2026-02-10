@@ -4,6 +4,9 @@ from typing import List, Dict, Any
 from core.llm_bridge import llm_bridge
 from core.logger import logger
 from core.audit import audit_manager
+from core.context_engine import context_engine
+from core.feedback import feedback_manager
+from core.safety import safety_guard
 from agents.base_agent import LIAAgent
 
 class Orchestrator:
@@ -11,13 +14,11 @@ class Orchestrator:
         self.agents = {agent.name: agent for agent in agents}
         self.history = []
 
-    def _get_system_prompt(self) -> str:
-        """
-        Auto-generates routing guidelines from registered agents.
-        No more hardcoded agent names — scales automatically when you add agents.
-        """
+    def _get_system_prompt(self, context: str = "") -> str:
+        """Auto-generates routing from registered agents + injects system context."""
         agent_descriptions = "\n".join([f"- {a.get_capabilities_prompt()}" for a in self.agents.values()])
-        return f"""You are the LIA Orchestrator. Break user requests into tasks for specialized agents.
+        
+        prompt = f"""You are the LIA Orchestrator. Break user requests into tasks for specialized agents.
 
 Agents:
 {agent_descriptions}
@@ -25,18 +26,39 @@ Agents:
 Return JSON only:
 {{"plan_name": "name", "steps": [{{"id": 1, "agent": "AgentName", "task": "specific task"}}]}}
 
-Rules: Pick the BEST agent per task. Use exact agent names from the list above."""
+Rules: Pick the BEST agent per task. Use exact agent names."""
+        
+        if context:
+            prompt += f"\n\nCurrent System Context:\n{context}"
+        
+        return prompt
 
     def plan(self, user_query: str) -> Dict[str, Any]:
-        """Uses LLM to generate a structured plan from user query."""
+        """Uses LLM to generate a plan, with system context and RAG history."""
         try:
             if not user_query or not user_query.strip():
                 return {"error": "Empty query provided", "steps": []}
             
             logger.info(f"Generating plan for: {user_query}")
             
+            # 1. Check RAG: Do we have a known-good command for this?
+            past_commands = feedback_manager.find_similar(user_query, min_rating=4)
+            rag_hint = ""
+            if past_commands:
+                rag_hint = "\n\nPast successful commands for similar queries:\n"
+                for cmd in past_commands[:2]:
+                    rag_hint += f"  Query: {cmd['query']} → Agent: {cmd['agent']}, Tool: {cmd['tool']}\n"
+            
+            # 2. Gather system context
+            context = context_engine.get_context(user_query)
+            
+            # 3. Build prompt
+            system_prompt = self._get_system_prompt(context)
+            if rag_hint:
+                system_prompt += rag_hint
+            
             messages = [
-                {"role": "system", "content": self._get_system_prompt()},
+                {"role": "system", "content": system_prompt},
                 {"role": "user", "content": user_query}
             ]
             
@@ -70,7 +92,7 @@ Rules: Pick the BEST agent per task. Use exact agent names from the list above."
             return {"error": f"Unexpected error: {str(e)}", "steps": []}
 
     def run(self, user_query: str):
-        """Executes the full plan with per-step error isolation."""
+        """Executes the full plan with safety checks, feedback, and error isolation."""
         try:
             plan = self.plan(user_query)
             
@@ -84,15 +106,30 @@ Rules: Pick the BEST agent per task. Use exact agent names from the list above."
                 task = step.get("task")
                 
                 if not agent_name or not task:
-                    results.append({"step": step.get('id', '?'), "result": "Error: Invalid step (missing agent or task)"})
+                    results.append({"step": step.get('id', '?'), "result": "Error: Invalid step"})
                     continue
                 
                 if agent_name in self.agents:
                     try:
                         logger.info(f"Step {step['id']}: [{agent_name}] -> {task}")
+                        
+                        # Execute
                         result = self.agents[agent_name].execute(task)
-                        audit_manager.log_action(agent_name, task, result)
+                        
+                        # Record for RAG
+                        success = "Error" not in str(result)
+                        feedback_manager.record_command(
+                            query=user_query, agent=agent_name,
+                            tool="", command=task, result=str(result),
+                            success=success
+                        )
+                        
+                        # Audit
+                        audit_manager.log_action(agent_name, task, result, 
+                            status="success" if success else "error")
+                        
                         results.append({"step": step['id'], "result": result})
+                        
                     except Exception as e:
                         error_msg = f"Agent {agent_name} crashed: {str(e)}"
                         logger.error(error_msg)
@@ -100,7 +137,11 @@ Rules: Pick the BEST agent per task. Use exact agent names from the list above."
                         results.append({"step": step['id'], "result": f"Error: {error_msg}"})
                 else:
                     available = ', '.join(self.agents.keys())
-                    results.append({"step": step['id'], "result": f"Error: Agent '{agent_name}' not found. Available: {available}"})
+                    results.append({"step": step['id'], 
+                        "result": f"Error: Agent '{agent_name}' not found. Available: {available}"})
+            
+            # Store in history
+            self.history.append({"query": user_query, "results": results})
             
             return results
             
@@ -118,13 +159,17 @@ Rules: Pick the BEST agent per task. Use exact agent names from the list above."
         for step in plan.get("steps", []):
             agent_name = step.get("agent")
             if agent_name in self.agents:
-                tasks.append(self._execute_step_async(step, self.agents[agent_name]))
+                tasks.append(self._execute_step_async(step, self.agents[agent_name], user_query))
         
         return await asyncio.gather(*tasks)
 
-    async def _execute_step_async(self, step, agent):
+    async def _execute_step_async(self, step, agent, user_query):
         try:
             result = agent.execute(step['task'])
+            feedback_manager.record_command(
+                query=user_query, agent=agent.name,
+                tool="", command=step['task'], result=str(result)
+            )
             audit_manager.log_action(agent.name, step['task'], result)
             return {"step": step['id'], "result": result}
         except Exception as e:
