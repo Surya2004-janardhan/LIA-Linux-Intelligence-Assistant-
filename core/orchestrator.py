@@ -7,6 +7,8 @@ from core.audit import audit_manager
 from core.context_engine import context_engine
 from core.feedback import feedback_manager
 from core.safety import safety_guard
+from core.telemetry import telemetry
+import time
 from agents.base_agent import LIAAgent
 
 class Orchestrator:
@@ -88,33 +90,36 @@ Rules: Pick the BEST agent per task. Use exact agent names."""
         except Exception as e:
             return {"error": f"Unexpected error: {str(e)}", "steps": []}
 
-    async def run(self, user_query: str):
-        """Executes the full plan asynchronously."""
+    async def run_stream(self, user_query: str):
+        """Yields streaming status updates during execution."""
         try:
+            yield {"status": "planning", "message": "Analyzing query..."}
             plan = await self.plan(user_query)
             
             if "error" in plan:
-                return [{"step": 0, "result": f"Planning Error: {plan['error']}"}]
+                yield {"status": "error", "message": f"Planning Error: {plan['error']}"}
+                return
+
+            yield {"status": "planned", "plan": plan}
             
             results = []
-            
-            # For simplicity, sequential execution awaiting each step
-            # Could upgrade to concurrent execution if steps are independent
-            
             for step in plan.get("steps", []):
                 agent_name = step.get("agent")
                 task = step.get("task")
                 
                 if not agent_name or not task:
-                    results.append({"step": step.get('id', '?'), "result": "Error: Invalid step"})
+                    yield {"status": "error", "message": f"Invalid step {step.get('id', '?')}"}
                     continue
                 
                 if agent_name in self.agents:
+                    yield {"status": "executing", "step": step['id'], "agent": agent_name, "task": task}
+                    start_time = time.time()
                     try:
                         logger.info(f"Step {step['id']}: [{agent_name}] -> {task}")
                         
                         # Execute Async
                         result = await self.agents[agent_name].execute(task)
+                        duration = time.time() - start_time
                         
                         # Record for RAG
                         success = "Error" not in str(result)
@@ -124,27 +129,43 @@ Rules: Pick the BEST agent per task. Use exact agent names."""
                             success=success
                         )
                         
+                        # Telemetry
+                        telemetry.log_command(agent_name, success, duration)
+                        
                         # Audit
                         audit_manager.log_action(agent_name, task, result, 
                             status="success" if success else "error")
                         
-                        results.append({"step": step['id'], "result": result})
+                        step_res = {"step": step['id'], "result": result}
+                        results.append(step_res)
+                        yield {"status": "completed", "step": step['id'], "result": result}
                         
                     except Exception as e:
                         error_msg = f"Agent {agent_name} crashed: {str(e)}"
                         logger.error(error_msg)
                         audit_manager.log_action(agent_name, task, error_msg, status="error")
+                        yield {"status": "error", "step": step['id'], "message": error_msg}
                         results.append({"step": step['id'], "result": f"Error: {error_msg}"})
                 else:
                     available = ', '.join(self.agents.keys())
-                    results.append({"step": step['id'], 
-                        "result": f"Error: Agent '{agent_name}' not found. Available: {available}"})
+                    msg = f"Agent '{agent_name}' not found. Available: {available}"
+                    yield {"status": "error", "step": step['id'], "message": msg}
+                    results.append({"step": step['id'], "result": f"Error: {msg}"})
             
             # Store in history
             self.history.append({"query": user_query, "results": results})
-            
-            return results
+            yield {"status": "finished", "results": results}
             
         except Exception as e:
-            logger.error(f"Orchestrator run failed: {e}")
-            return [{"step": 0, "result": f"Fatal Error: {str(e)}"}]
+            logger.error(f"Orchestrator stream failed: {e}")
+            yield {"status": "error", "message": f"Fatal Error: {str(e)}"}
+
+    async def run(self, user_query: str):
+        """Executes the full plan asynchronously (wrapper for run_stream)."""
+        results = []
+        async for update in self.run_stream(user_query):
+            if update["status"] == "finished":
+                results = update["results"]
+            elif update["status"] == "error" and "step" not in update:
+                return [{"step": 0, "result": f"Error: {update['message']}"}]
+        return results

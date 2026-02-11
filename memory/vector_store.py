@@ -3,11 +3,18 @@ import numpy as np
 import os
 import pickle
 from core.logger import logger
+from core.llm_bridge import llm_bridge
 
 class VectorStore:
-    def __init__(self, index_dir="memory/vector_index", dimension=384):
+    def __init__(self, index_dir="memory/vector_index", dimension=None):
         self.index_dir = index_dir
-        self.dimension = dimension
+        # Try to detect dimension from a test embedding
+        if dimension is None:
+            test_emb = llm_bridge.embed("test")
+            self.dimension = len(test_emb) if test_emb else 768
+        else:
+            self.dimension = dimension
+            
         self.index_path = os.path.join(index_dir, "lia.index")
         self.metadata_path = os.path.join(index_dir, "metadata.pkl")
         self.index = None
@@ -52,6 +59,17 @@ class VectorStore:
         self.index.add(vectors)
         self.metadata.extend(metadata_list)
         self.save()
+
+    def add_text(self, text, metadata):
+        vector = llm_bridge.embed(text)
+        if vector:
+            self.add([vector], [metadata])
+
+    def search_text(self, query_text, k=5):
+        query_vector = llm_bridge.embed(query_text)
+        if not query_vector:
+            return []
+        return self.search(query_vector, k)
 
     def search(self, query_vector, k=5):
         if self.index.ntotal == 0:

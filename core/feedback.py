@@ -13,6 +13,8 @@ from typing import Optional, List, Dict
 from core.logger import logger
 
 
+from memory.vector_store import vector_store
+
 class FeedbackManager:
     """
     Local feedback loop:
@@ -74,6 +76,12 @@ class FeedbackManager:
                 (query, agent, tool, command, result[:2000], success)
             )
             conn.commit()
+            
+            # Also add to vector store if successful
+            if success:
+                vector_store.add_text(query, {
+                    "query": query, "agent": agent, "tool": tool, "command": command
+                })
         except Exception as e:
             logger.error(f"Failed to record command: {e}")
     
@@ -92,22 +100,28 @@ class FeedbackManager:
     
     def find_similar(self, query: str, min_rating: int = 3, limit: int = 3) -> List[Dict]:
         """
-        RAG: Find past commands that match the current query.
-        Uses keyword matching on SQLite (fast enough for local use).
+        RAG: Find past commands that match the current query using Vector Similarity.
         """
         try:
+            # 1. Try Vector Search (Best accuracy)
+            vector_results = vector_store.search_text(query, k=limit)
+            if vector_results:
+                results = []
+                for res in vector_results:
+                    # Filter by "distance" (score) if needed
+                    if res["score"] < 1.0: # Heuristic threshold for nomic-embed
+                        results.append(res["metadata"])
+                if results:
+                    return results
+
+            # 2. Fallback to SQLite keyword matching
             cursor = self._get_conn().cursor()
-            
-            # Extract keywords from query
-            stop_words = {"the", "a", "an", "is", "are", "was", "were", "do", "does",
-                         "can", "you", "my", "me", "i", "to", "in", "on", "for", "it",
-                         "how", "what", "this", "that", "all", "please"}
+            stop_words = {"the", "a", "an", "is", "are", "do", "how", "what", "please"}
             keywords = [w.lower() for w in query.split() if w.lower() not in stop_words and len(w) > 2]
             
             if not keywords:
                 return []
             
-            # Build LIKE query for each keyword
             conditions = " OR ".join(["query LIKE ?" for _ in keywords])
             params = [f"%{kw}%" for kw in keywords]
             params.extend([min_rating, limit])
@@ -116,21 +130,10 @@ class FeedbackManager:
                 SELECT query, agent, tool, command, result, rating 
                 FROM command_history 
                 WHERE ({conditions}) AND rating >= ? AND success = 1
-                ORDER BY rating DESC, timestamp DESC
-                LIMIT ?
+                ORDER BY rating DESC LIMIT ?
             """, params)
             
-            results = []
-            for row in cursor.fetchall():
-                results.append({
-                    "query": row[0],
-                    "agent": row[1],
-                    "tool": row[2],
-                    "command": row[3],
-                    "result": row[4],
-                    "rating": row[5]
-                })
-            return results
+            return [{"query": r[0], "agent": r[1], "tool": r[2], "command": r[3], "result": r[4]} for r in cursor.fetchall()]
         except Exception as e:
             logger.error(f"RAG search failed: {e}")
             return []

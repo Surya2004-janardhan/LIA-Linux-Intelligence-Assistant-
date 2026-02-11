@@ -9,7 +9,7 @@ class LIAApp:
         self.workflow_engine = workflow_engine
         self.theme_color = "#00D2FF"
 
-    def main(self, page: ft.Page):
+    async def main(self, page: ft.Page):
         self.page = page
         page.title = "LIA Control Center"
         page.theme_mode = ft.ThemeMode.DARK
@@ -86,10 +86,10 @@ class LIAApp:
             ft.Text("System Customization", size=24, weight="bold"),
             ft.Text("Manage your local-first intelligence environment.", color="#AAAAAA"),
             ft.Divider(color="#2A2E3D"),
-            ft.Switch(label="Enable Firejail Sandbox (Linux Only)", value=config.get('security.sandbox_enabled')),
+            ft.Switch(label="Enable Sandbox Ring (Linux Only)", value=config.get('security.sandbox_enabled')),
             ft.Switch(label="Strict Confirmation Mode", value=True),
             ft.Dropdown(
-                label="Primary Model (Ollama)",
+                label="Primary Model",
                 value=config.get('llm.model'),
                 options=[
                     ft.dropdown.Option("llama3"),
@@ -99,8 +99,6 @@ class LIAApp:
                 width=300
             ),
             ft.ElevatedButton("Save Configuration", icon=ft.icons.SAVE, bgcolor=self.theme_color, color="white"),
-            ft.Divider(color="#2A2E3D"),
-            ft.Text("Audit Log Path: memory/audit_log.db", size=12, color="#666666"),
         ], scroll=ft.ScrollMode.ALWAYS, padding=20, visible=False)
 
         # --- WORKFLOWS TAB ---
@@ -122,15 +120,15 @@ class LIAApp:
             workflow_list.controls.append(ft.Text(f"Error loading workflows: {str(e)}", color="red"))
 
         # Navigation Handling
-        def update_view(e):
+        async def update_view(e):
             dashboard_content.visible = (self.tabs.selected_index == 0)
             settings_content.visible = (self.tabs.selected_index == 1)
             workflow_list.visible = (self.tabs.selected_index == 2)
-            page.update()
+            await page.update_async()
         
         self.tabs.on_change = update_view
 
-        page.add(
+        await page.add_async(
             self.tabs,
             ft.Divider(height=1, color="#2A2E3D"),
             ft.Stack([
@@ -140,13 +138,11 @@ class LIAApp:
             ], expand=True)
         )
 
-    def show_error(self, message: str, details: str = None):
+    async def show_error(self, message: str, details: str = None):
         """Displays error in both snackbar and result area."""
-        # Snackbar for quick notification
         self.error_snackbar.content.value = message
         self.error_snackbar.open = True
         
-        # Detailed error in result area
         error_view = ft.Column([
             ft.Row([
                 ft.Icon(ft.icons.ERROR_OUTLINE, color="#D32F2F", size=40),
@@ -169,9 +165,9 @@ class LIAApp:
             ))
         
         self.result_display.content = error_view
-        self.page.update()
+        await self.page.update_async()
 
-    def add_status_bubble(self, agent_name, status, color="#00D2FF"):
+    async def add_status_bubble(self, agent_name, status, color="#00D2FF"):
         bubble = ft.Container(
             content=ft.Row([
                 ft.Icon(ft.icons.CIRCLE, size=8, color=color),
@@ -180,13 +176,13 @@ class LIAApp:
             padding=2,
         )
         self.status_feed.controls.insert(0, bubble)
-        if len(self.status_feed.controls) > 50:  # Limit feed size
+        if len(self.status_feed.controls) > 50:
             self.status_feed.controls.pop()
-        self.page.update()
+        await self.page.update_async()
 
-    def process_query(self, query):
+    async def process_query(self, query):
         if not query:
-            self.show_error("Empty Query", "Please enter a task or question for LIA.")
+            await self.show_error("Empty Query", "Please enter a task or question for LIA.")
             return
         
         try:
@@ -194,151 +190,82 @@ class LIAApp:
                 ft.ProgressBar(color=self.theme_color),
                 ft.Text("Consulting Swarm...")
             ])
-            self.page.update()
+            await self.page.update_async()
+            await self.add_status_bubble("Orchestrator", "Analyzing query...")
             
-            self.add_status_bubble("Orchestrator", "Analyzing query...")
-            
-            # Validate Orchestrator
-            if not self.orchestrator or not self.orchestrator.agents:
-                raise Exception("Orchestrator not initialized or no agents available")
-            
-            plan = self.orchestrator.plan(query)
-            
-            # Check for planning errors
-            if "error" in plan:
-                error_msg = plan.get("error", "Unknown planning error")
-                self.show_error("Planning Failed", f"The orchestrator couldn't create a plan: {error_msg}")
-                self.add_status_bubble("Orchestrator", "Planning failed", color="red")
-                return
-
-            # Check for empty plan
-            if not plan.get("steps"):
-                self.show_error("No Actions Planned", "The orchestrator couldn't determine how to handle this request. Try rephrasing or being more specific.")
-                return
-
-            # Display plan
-            steps = [ft.Text("Execution Plan Generated", weight="bold", size=16), ft.Divider()]
-            for step in plan.get('steps', []):
-                steps.append(ft.Row([
-                    ft.Icon(ft.icons.CHECK_CIRCLE_OUTLINE, size=16, color=self.theme_color),
-                    ft.Text(f"[{step['agent']}] {step['task']}", size=14)
-                ]))
-            
-            confirm_btn = ft.ElevatedButton(
-                "Start Swarm Execution",
-                icon=ft.icons.PLAY_ARROW,
-                on_click=lambda _: self.execute_plan(query),
-                bgcolor=self.theme_color,
-                color="white"
-            )
-            steps.append(ft.Container(confirm_btn, margin=ft.margin.only(top=20)))
-            
-            self.result_display.content = ft.Column(steps, scroll=ft.ScrollMode.ALWAYS)
-            self.page.update()
-            
-        except Exception as e:
-            logger.error(f"Query processing error: {e}\n{traceback.format_exc()}")
-            self.show_error(
-                "Query Processing Failed",
-                f"Exception: {str(e)}\n\nStack Trace:\n{traceback.format_exc()}"
-            )
-            self.add_status_bubble("System", "Error occurred", color="red")
-
-    def execute_plan(self, query):
-        try:
-            self.add_status_bubble("Swarm", "Executing tasks...")
-            results = self.orchestrator.run(query)
-            
-            if not results:
-                self.show_error("Execution Failed", "No results returned from agents. Check logs for details.")
-                return
-            
-            res_view = [ft.Text("Execution Finished", weight="bold", size=16), ft.Divider()]
-            has_errors = False
-            
-            for res in results:
-                result_text = str(res.get('result', 'No result'))
-                is_err = "Error" in result_text or "error" in result_text.lower()
+            # Start streaming from orchestrator
+            async for update in self.orchestrator.run_stream(query):
+                state = update.get("status")
                 
-                if is_err:
-                    has_errors = True
+                if state == "planning":
+                    await self.add_status_bubble("Orchestrator", "Planning...")
                 
-                res_view.append(ft.Container(
-                    content=ft.Column([
-                        ft.Row([
-                            ft.Icon(
-                                ft.icons.ERROR if is_err else ft.icons.CHECK_CIRCLE,
-                                color="#D32F2F" if is_err else self.theme_color,
-                                size=20
-                            ),
-                            ft.Text(f"Step {res['step']}", size=12, weight="bold", color=self.theme_color)
-                        ]),
-                        ft.Text(result_text, size=14, selectable=True)
-                    ]),
-                    bgcolor="#14171F" if not is_err else "#331111",
-                    padding=10,
-                    border_radius=8,
-                    margin=ft.margin.only(bottom=5),
-                    border=ft.border.all(1, "#D32F2F" if is_err else "#2A2E3D")
-                ))
-            
-            self.result_display.content = ft.Column(res_view, scroll=ft.ScrollMode.ALWAYS)
-            
-            if has_errors:
-                self.add_status_bubble("System", "Completed with errors", color="orange")
-            else:
-                self.add_status_bubble("System", "All tasks completed", color="green")
-            
-            self.page.update()
-            
-        except Exception as e:
-            logger.error(f"Execution error: {e}\n{traceback.format_exc()}")
-            self.show_error(
-                "Execution Failed",
-                f"Exception during agent execution: {str(e)}\n\nStack Trace:\n{traceback.format_exc()}"
-            )
-            self.add_status_bubble("System", "Execution failed", color="red")
+                elif state == "planned":
+                    plan = update["plan"]
+                    steps_view = [ft.Text("Execution Plan Generated", weight="bold", size=16), ft.Divider()]
+                    for step in plan.get('steps', []):
+                        steps_view.append(ft.Row([
+                            ft.Icon(ft.icons.PENDING_ACTIONS, size=16, color="#666666"),
+                            ft.Text(f"[{step['agent']}] {step['task']}", size=14)
+                        ]))
+                    self.result_display.content = ft.Column(steps_view, scroll=ft.ScrollMode.ALWAYS)
+                    await self.page.update_async()
+                    await self.add_status_bubble("Swarm", "Plan ready")
 
-    def run_workflow_ui(self, name):
+                elif state == "executing":
+                    await self.add_status_bubble(update['agent'], f"Working on: {update['task']}...")
+                
+                elif state == "completed":
+                    await self.add_status_bubble(update['agent'], "Task completed", color="green")
+                
+                elif state == "error":
+                    await self.add_status_bubble(update.get('agent', 'System'), "Error occurred", color="red")
+                    if "step" not in update: # Fatal
+                        await self.show_error("Execution Failed", update.get('message'))
+
+                elif state == "finished":
+                    results = update["results"]
+                    res_view = [ft.Text("Execution Finished", weight="bold", size=16), ft.Divider()]
+                    for res in results:
+                        res_str = str(res['result'])
+                        is_err = "Error" in res_str or "error" in res_str.lower()
+                        res_view.append(ft.Container(
+                            content=ft.Column([
+                                ft.Text(f"Step {res['step']}", size=11, color=self.theme_color),
+                                ft.Text(res_str, size=14, selectable=True)
+                            ]),
+                            bgcolor="#14171F" if not is_err else "#331111",
+                            padding=10,
+                            border_radius=8,
+                            margin=ft.margin.only(bottom=5)
+                        ))
+                    self.result_display.content = ft.Column(res_view, scroll=ft.ScrollMode.ALWAYS)
+                    await self.page.update_async()
+                    await self.add_status_bubble("System", "All tasks finished", color="green")
+
+        except Exception as e:
+            logger.error(f"GUI Query Error: {e}\n{traceback.format_exc()}")
+            await self.show_error("Query Processing Failed", str(e))
+
+    async def run_workflow_ui(self, name):
         try:
             self.tabs.selected_index = 0
-            self.tabs.on_change(None)
-            self.add_status_bubble("Workflow", f"Started: {name}")
+            await self.page.update_async()
+            await self.add_status_bubble("Workflow", f"Started: {name}")
             
-            results = self.workflow_engine.execute_workflow(name)
-            
-            if not results:
-                self.show_error("Workflow Failed", f"No results from workflow '{name}'. Check if the workflow file is valid.")
-                return
+            # Workflow engine needs to be async-aligned as well, but for now we wrap in thread if sync
+            results = await asyncio.to_thread(self.workflow_engine.execute_workflow, name)
             
             res_view = [ft.Text(f"Workflow Complete: {name}", weight="bold", size=16), ft.Divider()]
-            
             for res in results:
-                if "error" in res:
-                    res_view.append(ft.Container(
-                        content=ft.Text(f"❌ {res.get('error', 'Unknown error')}", color="#D32F2F"),
-                        bgcolor="#331111",
-                        padding=10,
-                        border_radius=8,
-                        margin=ft.margin.only(bottom=5)
-                    ))
-                else:
-                    res_view.append(ft.Text(f"✅ {res.get('result', 'No result')}", size=14))
+                symbol = "❌" if "error" in res else "✅"
+                res_view.append(ft.Text(f"{symbol} {res.get('result') or res.get('error')}", size=14))
             
             self.result_display.content = ft.Column(res_view, scroll=ft.ScrollMode.ALWAYS)
-            self.page.update()
-            
+            await self.page.update_async()
         except Exception as e:
-            logger.error(f"Workflow execution error: {e}\n{traceback.format_exc()}")
-            self.show_error(
-                f"Workflow '{name}' Failed",
-                f"Exception: {str(e)}\n\nStack Trace:\n{traceback.format_exc()}"
-            )
+            await self.show_error(f"Workflow '{name}' Failed", str(e))
 
 def start_gui(orchestrator, workflow_engine):
-    try:
-        app = LIAApp(orchestrator, workflow_engine)
-        ft.app(target=app.main)
-    except Exception as e:
-        logger.error(f"GUI startup failed: {e}\n{traceback.format_exc()}")
-        print(f"FATAL ERROR: Could not start GUI\n{e}")
+    app = LIAApp(orchestrator, workflow_engine)
+    ft.app(target=app.main)

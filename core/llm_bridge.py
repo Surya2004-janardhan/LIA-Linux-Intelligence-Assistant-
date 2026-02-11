@@ -124,6 +124,35 @@ class LLMBridge:
         except Exception as e:
             return f"LLM Provider Error ({self.provider}): {str(e)}"
 
+    def embed(self, text: str) -> List[float]:
+        """Generates embeddings via Ollama (default: nomic-embed-text)."""
+        if self.provider == "ollama":
+            url = f"{self.base_url}/api/embeddings"
+            # We use a standard embedding model names for Ollama
+            embed_model = config.get("llm.embedding_model", "nomic-embed-text")
+            payload = {
+                "model": embed_model,
+                "prompt": text
+            }
+            try:
+                resp = requests.post(url, json=payload, timeout=20)
+                resp.raise_for_status()
+                return resp.json().get("embedding", [])
+            except Exception as e:
+                logger.error(f"Ollama Embedding Error: {e}")
+                return []
+        
+        # litellm embedding fallback if available
+        if LITELLM_AVAILABLE:
+            try:
+                import litellm
+                resp = litellm.embedding(model=self.model, input=[text])
+                return resp['data'][0]['embedding']
+            except:
+                pass
+        
+        return []
+
     def check_health(self) -> bool:
         """Verifies connection to the configured LLM."""
         try:

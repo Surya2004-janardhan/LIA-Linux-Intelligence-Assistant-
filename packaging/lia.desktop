@@ -1,0 +1,9 @@
+[Desktop Entry]
+Name=LIA
+Comment=Linux Intelligence Assistant
+Exec=lia
+Icon=/opt/lia/ui/assets/icon.png
+Terminal=false
+Type=Application
+Categories=Utility;System;
+Keywords=AI;Assistant;Linux;Automation;

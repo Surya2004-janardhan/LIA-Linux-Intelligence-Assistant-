@@ -104,11 +104,12 @@ class OSLayer:
         self._shutdown_hooks.append(hook)
 
     async def run_command(self, cmd: Union[List[str], str], timeout: int = 30, cwd: str = None, 
-                          env: dict = None, shell: bool = False) -> Dict:
+                          env: dict = None, shell: bool = False, sandbox: bool = False) -> Dict:
         """
         Async command execution.
         """
         import time
+        from core.sandbox import sandbox as sandbox_ring
         start = time.monotonic()
         
         # Safety Check
@@ -123,6 +124,21 @@ class OSLayer:
                 "returncode": -1, "duration_ms": 0, "timed_out": False
             }
         
+        # Apply Sandboxing if requested (only if shell=False for now for simplicity, 
+        # or handle string wrapping in sandbox.py)
+        if sandbox:
+            if isinstance(cmd, str):
+                # We need to list-ify for firejail usually, or handle it in wrap_command
+                # For now let's assume we want list-based execution for sandboxing
+                if not shell:
+                    cmd_list = cmd.split()
+                    cmd = sandbox_ring.wrap_command(cmd_list)
+                else:
+                    # Shell string sandboxing
+                    cmd = f"firejail --quiet --net=none --private -- {cmd}"
+            else:
+                cmd = sandbox_ring.wrap_command(cmd)
+
         # Determine shell usage
         program = cmd
         args = []

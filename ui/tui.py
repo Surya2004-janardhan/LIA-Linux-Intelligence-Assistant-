@@ -82,35 +82,50 @@ class LIATUI(App):
 
         log = self.query_one("#results_log", Log)
         status = self.query_one("#agent_status", Static)
-        status.update("Orchestrating...")
+        
+        # Clear input early to improve responsiveness
+        event.input.value = ""
         log.write_line(f"User > {query}")
 
-        # Clear input
-        event.input.value = ""
+        try:
+            async for update in self.orchestrator.run_stream(query):
+                state = update.get("status")
+                
+                if state == "planning":
+                    status.update("Orchestrating...")
+                
+                elif state == "planned":
+                    log.write_line("PLAN GENERATED:")
+                    for step in update["plan"].get("steps", []):
+                        log.write_line(f" - [{step['agent']}] {step['task']}")
+                    log.write_line("Executing Swarm...")
+                
+                elif state == "executing":
+                    status.update(f"Executing: {update['agent']}")
+                    log.write_line(f" > [{update['agent']}] working on: {update['task']}...")
+                
+                elif state == "completed":
+                    log.write_line(f" ✅ Step {update['step']} finished.")
+                
+                elif state == "error":
+                    log.write_line(f" ❌ Error: {update.get('message', 'Unknown error')}")
+                    if "step" not in update: # Fatal planning error
+                        status.update("Error")
+                
+                elif state == "finished":
+                    log.write_line("--- EXECUTION FINISHED ---")
+                    status.update("Idle")
+                    for res in update["results"]:
+                         # Check if result is already long, truncate if needed for TUI
+                         res_str = str(res['result'])
+                         if len(res_str) > 500:
+                             res_str = res_str[:500] + "..."
+                         log.write_line(f"Step {res['step']} Result: {res_str}")
 
-        # Run Planning (Off-thread suggested for real TUI, but keeping it simple for MVP)
-        plan = self.orchestrator.plan(query)
-        
-        if "error" in plan:
-            log.write_line(f"Error: {plan['error']}")
+        except Exception as e:
+            logger.error(f"TUI Error: {e}")
+            log.write_line(f"Fatal UI Error: {str(e)}")
             status.update("Error")
-            return
-
-        log.write_line("PLAN GENERATED:")
-        for step in plan.get("steps", []):
-            log.write_line(f" - [{step['agent']}] {step['task']}")
-        
-        # In TUI we auto-confirm for now or could add a toggle
-        log.write_line("Executing...")
-        status.update("Executing Agents...")
-        
-        results = self.orchestrator.run(query)
-        
-        log.write_line("RESULTS:")
-        for res in results:
-            log.write_line(f"Step {res['step']}: {res['result']}")
-        
-        status.update("Completed")
 
     def action_clear(self) -> None:
         self.query_one("#results_log", Log).clear()

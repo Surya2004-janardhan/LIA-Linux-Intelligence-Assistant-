@@ -16,6 +16,7 @@ class PermissionManager:
     
     def __init__(self):
         self._allowed_paths: List[str] = []
+        self._temp_stack: List[List[str]] = []
         self._cache = {}
         self.reload()
 
@@ -42,13 +43,27 @@ class PermissionManager:
         self._cache = {}
         logger.info(f"Permissions loaded. Allowed scopes: {self._allowed_paths}")
 
-    def configure_paths(self, new_paths: List[str]):
+    def temporary_scope(self, paths: List[str]):
         """
-        Setup utility: updates config with new user-approved paths.
+        Context manager for temporary permission narrowing.
         """
-        config.set("permissions.allowed_paths", new_paths)
-        config.save()
-        self.reload()
+        class TempScope:
+            def __init__(self, pm, new_paths):
+                self.pm = pm
+                self.new_paths = [os.path.abspath(os.path.expanduser(p)) for p in new_paths]
+                self.old_paths = None
+
+            def __enter__(self):
+                self.old_paths = self.pm._allowed_paths.copy()
+                self.pm._allowed_paths = self.new_paths
+                self.pm._cache = {}
+                return self
+
+            def __exit__(self, exc_type, exc_val, exc_tb):
+                self.pm._allowed_paths = self.old_paths
+                self.pm._cache = {}
+
+        return TempScope(self, paths)
 
     def is_path_allowed(self, path: str) -> bool:
         """

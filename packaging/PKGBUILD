@@ -1,0 +1,33 @@
+# Maintainer: LIA Team
+pkgname=lia-linux-intelligence-assistant
+pkgver=1.0.0
+pkgrel=1
+pkgdesc="Advanced Linux Intelligence Assistant — Intelligence, Safety, and Automation."
+arch=('any')
+url="https://github.com/Surya2004-janardhan/LIA-Linux-Intelligence-Assistant-"
+license=('MIT')
+depends=('python' 'python-pip' 'python-psutil' 'python-requests' 'python-yaml' 'firejail')
+optdepends=(
+    'shellcheck: static analysis of generated shell commands',
+    'faiss: high-performance vector search for RAG'
+)
+source=("lia.desktop")
+sha256sums=('SKIP')
+
+package() {
+  # Create application directory
+  install -dm755 "$pkgdir/opt/lia"
+  cp -r "$srcdir/../../"* "$pkgdir/opt/lia/"
+  
+  # Remove unnecessary files
+  rm -rf "$pkgdir/opt/lia/.git"
+  rm -rf "$pkgdir/opt/lia/.venv"
+  
+  # Create binary link
+  install -dm755 "$pkgdir/usr/bin"
+  ln -s /opt/lia/lia.py "$pkgdir/usr/bin/lia"
+  chmod +x "$pkgdir/opt/lia/lia.py"
+  
+  # Install Desktop Entry
+  install -Dm644 "$srcdir/lia.desktop" "$pkgdir/usr/share/applications/lia.desktop"
+}

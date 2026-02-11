@@ -151,6 +151,7 @@ class SafetyGuard:
             "dry_run_command": dry_run,
             "static_analysis": static_analysis,
             "allow_execution": risk_level != "BLOCKED",
+            "suggest_sandbox": risk_level == "HIGH_RISK"
         }
         
         if risk_level == "BLOCKED":

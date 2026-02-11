@@ -16,6 +16,7 @@ class LIAAgent:
         self.name = name
         self.capabilities = capabilities
         self.tools = {}  # {name: {func, desc, keywords}}
+        self.scoped_path = None # Optional list of paths for temporary scoping
         logger.info(f"Initialized {self.name}")
 
     def register_tool(self, name: str, func: callable, description: str, keywords: list):
@@ -95,10 +96,59 @@ If no tool fits, return {{"error": "reason"}}."""
         """
         return {}
 
+    async def _self_correct(self, task: str, error_msg: str) -> str:
+        """Self-Correction hook: Asks LLM to fix a failed command."""
+        logger.info(f"[{self.name}] Attempting self-correction for: {task}")
+        
+        tools_list = "\n".join([f"- {n}: {t['desc']}" for n, t in self.tools.items()])
+        
+        prompt = f"""Task: "{task}"
+The previous attempt failed with this error:
+"{error_msg}"
+
+You are {self.name}. Can you suggest a recovery command or a fix using your tools?
+Examples: Wait for a lock, install a missing dependency, fix a typo.
+
+Available Tools:
+{tools_list}
+
+Return only JSON:
+{{"tool": "tool_name", "args": {{"arg": "val"}}}}
+If no fix is possible, return {{"error": "Cannot fix", "reason": "reason"}}.
+"""
+
+        response = await asyncio.to_thread(llm_bridge.generate, [{"role": "user", "content": prompt}], {"type": "json_object"})
+        
+        try:
+            import json
+            if "```json" in response:
+                response = response.split("```json")[1].split("```")[0].strip()
+            
+            plan = json.loads(response)
+            if "error" in plan:
+                return f"Self-Correction Failed: {plan['reason']}"
+            
+            tool_name = plan.get("tool")
+            args = plan.get("args", {})
+            
+            if tool_name in self.tools:
+                logger.info(f"[{self.name}] Trying self-correction tool: {tool_name}")
+                func = self.tools[tool_name]["func"]
+                if asyncio.iscoroutinefunction(func):
+                    return await func(**args)
+                else:
+                    return await asyncio.to_thread(func, **args)
+            return f"Self-Correction error: Tool {tool_name} not found."
+            
+        except Exception as e:
+            return f"Self-Correction Error: {str(e)}"
+
     async def smart_execute(self, task: str) -> str:
         """
         The core logic: Try keywords first, then LLM.
+        Includes one-shot self-correction on failure.
         """
+        result = None
         try:
             # TIER 1: Keyword Match
             tool_name, confidence = self.match_tool_by_keywords(task)
@@ -109,18 +159,32 @@ If no tool fits, return {{"error": "reason"}}."""
                 func = self.tools[tool_name]["func"]
                 
                 if asyncio.iscoroutinefunction(func):
-                    return await func(**args)
+                    result = await func(**args)
                 else:
-                    # Run sync tool in thread pool to avoid blocking loop
-                    return await asyncio.to_thread(func, **args)
-
-            # TIER 2: LLM Fallback
-            return await self._llm_execute(task)
+                    result = await asyncio.to_thread(func, **args)
+            else:
+                # TIER 2: LLM Fallback
+                result = await self._llm_execute(task)
+            
+            # Check for failure to trigger self-correction
+            if result and ("Error" in str(result) or "failed" in str(result).lower()):
+                logger.warning(f"[{self.name}] Task failed, triggering self-correction...")
+                corrected_result = await self._self_correct(task, str(result))
+                return f"Original Error: {result}\nSelf-Correction Attempt: {corrected_result}"
+                
+            return result
             
         except Exception as e:
             logger.error(f"[{self.name}] Crash: {e}")
-            return str(LIAResult.fail(ErrorCode.AGENT_CRASHED, str(e)))
+            # Try to self-correct even on crash if it's a known-ish error
+            return await self._self_correct(task, str(e))
 
     async def execute(self, task: str) -> str:
         """Entry point. Subclasses implement logic or call smart_execute."""
+        from core.permissions import permission_manager
+        
+        if self.scoped_path:
+            with permission_manager.temporary_scope(self.scoped_path):
+                return await self.smart_execute(task)
+        
         return await self.smart_execute(task)
