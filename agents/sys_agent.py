@@ -1,11 +1,11 @@
 import psutil
 import shlex
-from agents.base_agent import LIAAgent
+from agents.base_agent import WIAAgent
 from core.logger import logger
 from core.os_layer import os_layer
-from core.errors import LIAResult, ErrorCode
+from core.errors import WIAResult, ErrorCode
 
-class SysAgent(LIAAgent):
+class SysAgent(WIAAgent):
     def __init__(self):
         super().__init__("SysAgent", ["Process management", "Service control", "Health monitoring", "Disk status"])
         
@@ -88,7 +88,7 @@ class SysAgent(LIAAgent):
                 lines.append(f"{p['pid']:<8} {(p.get('cpu_percent') or 0):<7.1f} {(p.get('memory_percent') or 0):<7.1f} {p.get('name', '?')}")
             return "\n".join(lines)
         except Exception as e:
-            return str(LIAResult.fail(ErrorCode.AGENT_CRASHED, f"Process listing failed: {e}"))
+            return str(WIAResult.fail(ErrorCode.AGENT_CRASHED, f"Process listing failed: {e}"))
 
     def check_logs(self, service: str = "", limit: int = 50) -> str:
         """Reads systemd journal (Linux only)."""
@@ -110,13 +110,13 @@ class SysAgent(LIAAgent):
     def manage_service(self, service_name: str, action: str = "status") -> str:
         cmd = os_layer.get_service_cmd(service_name, action)
         if cmd is None:
-            return str(LIAResult.fail(ErrorCode.SERVICE_UNAVAILABLE, 
+            return str(WIAResult.fail(ErrorCode.SERVICE_UNAVAILABLE, 
                 "Service management not supported on this platform"))
         
         result = os_layer.run_command(cmd, timeout=15)
         if result["success"]:
             return result["stdout"]
-        return str(LIAResult.fail(
+        return str(WIAResult.fail(
             ErrorCode.COMMAND_TIMEOUT if result["timed_out"] else ErrorCode.SERVICE_UNAVAILABLE,
             result["stderr"]
         ))

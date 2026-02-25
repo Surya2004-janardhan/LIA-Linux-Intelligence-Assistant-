@@ -4,8 +4,8 @@ from textual.containers import Container, Horizontal, Vertical
 from core.logger import logger
 import json
 
-class LIATUI(App):
-    """A Textual TUI for LIA."""
+class WIATUI(App):
+    """A Textual TUI for WIA."""
 
     CSS = """
     Screen {
@@ -131,5 +131,5 @@ class LIATUI(App):
         self.query_one("#results_log", Log).clear()
 
 def start_tui(orchestrator, workflow_engine):
-    app = LIATUI(orchestrator, workflow_engine)
+    app = WIATUI(orchestrator, workflow_engine)
     app.run()

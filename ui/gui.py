@@ -3,7 +3,7 @@ from core.logger import logger
 from core.config import config
 import traceback
 
-class LIAApp:
+class WIAApp:
     def __init__(self, orchestrator, workflow_engine):
         self.orchestrator = orchestrator
         self.workflow_engine = workflow_engine
@@ -11,7 +11,7 @@ class LIAApp:
 
     async def main(self, page: ft.Page):
         self.page = page
-        page.title = "LIA Control Center"
+        page.title = "WIA Control Center"
         page.theme_mode = ft.ThemeMode.DARK
         page.window_width = 1000
         page.window_height = 800
@@ -52,7 +52,7 @@ class LIAApp:
         )
 
         search_field = ft.TextField(
-            hint_text="Ask LIA something...",
+            hint_text="Ask WIA something...",
             expand=True,
             border_radius=15,
             bgcolor="#1A1D26",
@@ -63,7 +63,7 @@ class LIAApp:
         dashboard_content = ft.Column([
             ft.Row([
                 ft.Icon(ft.icons.PSYCHOLOGY, color=self.theme_color, size=40),
-                ft.Text("LIA Swarm", size=28, weight="bold"),
+                ft.Text("WIA Swarm", size=28, weight="bold"),
             ]),
             ft.Row([search_field, ft.IconButton(ft.icons.SEND_ROUNDED, icon_color=self.theme_color, on_click=lambda _: self.process_query(search_field.value))]),
             ft.Row([
@@ -182,7 +182,7 @@ class LIAApp:
 
     async def process_query(self, query):
         if not query:
-            await self.show_error("Empty Query", "Please enter a task or question for LIA.")
+            await self.show_error("Empty Query", "Please enter a task or question for WIA.")
             return
         
         try:
@@ -267,5 +267,5 @@ class LIAApp:
             await self.show_error(f"Workflow '{name}' Failed", str(e))
 
 def start_gui(orchestrator, workflow_engine):
-    app = LIAApp(orchestrator, workflow_engine)
+    app = WIAApp(orchestrator, workflow_engine)
     ft.app(target=app.main)

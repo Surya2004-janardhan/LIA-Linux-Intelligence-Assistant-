@@ -1,4 +1,4 @@
-# LIA Security Model
+# WIA Security Model
 
 ## Principles
 

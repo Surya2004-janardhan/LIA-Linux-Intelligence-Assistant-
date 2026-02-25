@@ -1,10 +1,10 @@
 import re
-from agents.base_agent import LIAAgent
+from agents.base_agent import WIAAgent
 from core.logger import logger
 from core.os_layer import os_layer
-from core.errors import LIAResult, ErrorCode
+from core.errors import WIAResult, ErrorCode
 
-class PackageAgent(LIAAgent):
+class PackageAgent(WIAAgent):
     def __init__(self):
         super().__init__("PackageAgent", ["Package installation", "Updates", "Dependency management"])
         
@@ -23,25 +23,25 @@ class PackageAgent(LIAAgent):
 
     async def install_pip(self, package_name: str) -> str:
         if not package_name:
-            return str(LIAResult.fail(ErrorCode.INVALID_ARGS, "No package name provided"))
+            return str(WIAResult.fail(ErrorCode.INVALID_ARGS, "No package name provided"))
         result = await os_layer.run_command(["pip", "install", package_name], timeout=120)
         if result["success"]:
             return f"✅ Installed (pip): {package_name}\n{result['stdout'][-200:]}"
-        return str(LIAResult.fail(ErrorCode.AGENT_CRASHED, 
+        return str(WIAResult.fail(ErrorCode.AGENT_CRASHED, 
             f"pip install {package_name} failed: {result['stderr'][-300:]}"))
 
     async def install_npm(self, package_name: str) -> str:
         if not package_name:
-            return str(LIAResult.fail(ErrorCode.INVALID_ARGS, "No package name provided"))
+            return str(WIAResult.fail(ErrorCode.INVALID_ARGS, "No package name provided"))
         result = await os_layer.run_command(["npm", "install", "-g", package_name], timeout=120)
         if result["success"]:
             return f"✅ Installed (npm): {package_name}"
-        return str(LIAResult.fail(ErrorCode.AGENT_CRASHED,
+        return str(WIAResult.fail(ErrorCode.AGENT_CRASHED,
             f"npm install {package_name} failed: {result['stderr'][-300:]}"))
 
     async def install_system(self, package_name: str) -> str:
         if not package_name:
-            return str(LIAResult.fail(ErrorCode.INVALID_ARGS, "No package name provided"))
+            return str(WIAResult.fail(ErrorCode.INVALID_ARGS, "No package name provided"))
         
         pm = os_layer.get_package_manager()
         if pm == "apt":
@@ -53,24 +53,24 @@ class PackageAgent(LIAAgent):
         elif pm == "brew" or (os_layer.is_mac and os.path.exists("/usr/local/bin/brew")):
             cmd = ["brew", "install", package_name]
         else:
-            return str(LIAResult.fail(ErrorCode.DEPENDENCY_MISSING, f"Unsupported package manager for {package_name}"))
+            return str(WIAResult.fail(ErrorCode.DEPENDENCY_MISSING, f"Unsupported package manager for {package_name}"))
 
         result = await os_layer.run_command(cmd, timeout=300)
         if result["success"]:
             return f"✅ Installed (system): {package_name} via {pm}"
-        return str(LIAResult.fail(ErrorCode.AGENT_CRASHED, f"System install failed: {result['stderr'][-300:]}"))
+        return str(WIAResult.fail(ErrorCode.AGENT_CRASHED, f"System install failed: {result['stderr'][-300:]}"))
 
     async def list_pip(self) -> str:
         result = await os_layer.run_command(["pip", "list", "--format=columns"], timeout=15)
         if result["success"]:
             return result["stdout"]
-        return str(LIAResult.fail(ErrorCode.COMMAND_NOT_FOUND, result["stderr"]))
+        return str(WIAResult.fail(ErrorCode.COMMAND_NOT_FOUND, result["stderr"]))
 
     async def check_outdated(self) -> str:
         result = await os_layer.run_command(["pip", "list", "--outdated", "--format=columns"], timeout=30)
         if result["success"]:
             return result["stdout"] if result["stdout"] else "All packages are up to date ✅"
-        return str(LIAResult.fail(ErrorCode.COMMAND_NOT_FOUND, result["stderr"]))
+        return str(WIAResult.fail(ErrorCode.COMMAND_NOT_FOUND, result["stderr"]))
 
     async def update_system(self) -> str:
         if os_layer.is_windows:
@@ -89,7 +89,7 @@ class PackageAgent(LIAAgent):
         result = await os_layer.run_command(cmd, timeout=120)
         if result["success"]:
             return f"✅ System packages updated ({pm})"
-        return str(LIAResult.fail(ErrorCode.AGENT_CRASHED, result["stderr"][-300:]))
+        return str(WIAResult.fail(ErrorCode.AGENT_CRASHED, result["stderr"][-300:]))
 
     def extract_args_from_task(self, task: str, tool_name: str) -> dict:
         if tool_name in ("install_pip", "install_npm", "install_system"):

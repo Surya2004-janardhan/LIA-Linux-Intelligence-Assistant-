@@ -7,12 +7,12 @@ from core.logger import logger
 class Telemetry:
     """
     Local Telemetry System.
-    Stores usage statistics in ~/.lia/telemetry.json
+    Stores usage statistics in ~/.WIA/telemetry.json
     """
     def __init__(self, file_path=None):
         if file_path is None:
             home = os.path.expanduser("~")
-            base_dir = os.path.join(home, ".lia")
+            base_dir = os.path.join(home, ".WIA")
             os.makedirs(base_dir, exist_ok=True)
             self.file_path = os.path.join(base_dir, "telemetry.json")
         else:

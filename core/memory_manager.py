@@ -1,5 +1,5 @@
 """
-LIA Memory Manager — Central Knowledge Base & Setup.
+WIA Memory Manager — Central Knowledge Base & Setup.
 
 Includes:
 - Interactive 'First Run' setup to ask user for allowed system paths.
@@ -29,7 +29,7 @@ class MemoryManager:
     Triggers setup wizard if system context is not defined.
     """
     
-    def __init__(self, db_path="memory/lia.db"):
+    def __init__(self, db_path="memory/WIA.db"):
         self.db_path = db_path
         self._index = None
         self._conn = None
@@ -51,9 +51,9 @@ class MemoryManager:
         # If config is pristine, we must ask the user
         if not existing_paths or existing_paths == ["."]:
             print("\n╔═════════════════════════════════════════════════════════════════╗")
-            print("║   LIA Initial Setup (First Run)                                 ║")
+            print("║   WIA Initial Setup (First Run)                                 ║")
             print("╠═════════════════════════════════════════════════════════════════╣")
-            print("║ To function safely, LIA needs to know which directories         ║")
+            print("║ To function safely, WIA needs to know which directories         ║")
             print("║ it is allowed to access and embed into memory.                  ║")
             print("║                                                                 ║")
             print("║ Examples:                                                       ║")

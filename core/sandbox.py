@@ -41,7 +41,7 @@ class Sandbox:
         if private:
             sandbox_args.append('--private')
             
-        # Add basic noprofile for minimal interference, or custom LIA profile later
+        # Add basic noprofile for minimal interference, or custom WIA profile later
         sandbox_args.append('--noprofile')
         
         # Terminator for firejail args

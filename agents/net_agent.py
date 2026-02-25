@@ -1,11 +1,11 @@
 import socket
 import re
-from agents.base_agent import LIAAgent
+from agents.base_agent import WIAAgent
 from core.logger import logger
 from core.os_layer import os_layer
-from core.errors import LIAResult, ErrorCode
+from core.errors import WIAResult, ErrorCode
 
-class NetAgent(LIAAgent):
+class NetAgent(WIAAgent):
     def __init__(self):
         super().__init__("NetAgent", ["Network diagnostics", "Ping", "Port scanning", "Connectivity"])
         
@@ -22,9 +22,9 @@ class NetAgent(LIAAgent):
         cmd = os_layer.get_ping_cmd(host, count=4)
         result = os_layer.run_command(cmd, timeout=15)
         if result["timed_out"]:
-            return str(LIAResult.fail(ErrorCode.TIMEOUT, f"Ping to {host} timed out"))
+            return str(WIAResult.fail(ErrorCode.TIMEOUT, f"Ping to {host} timed out"))
         if not result["success"]:
-            return str(LIAResult.fail(ErrorCode.HOST_UNREACHABLE, f"Cannot reach {host}: {result['stderr']}"))
+            return str(WIAResult.fail(ErrorCode.HOST_UNREACHABLE, f"Cannot reach {host}: {result['stderr']}"))
         return f"✅ Ping {host}:\n{result['stdout']}\n({result['duration_ms']}ms total)"
 
     def check_ports(self, target: str = "localhost") -> str:
@@ -65,7 +65,7 @@ class NetAgent(LIAAgent):
             socket.create_connection(("8.8.8.8", 53), timeout=3)
             return "Internet: Connected ✅"
         except OSError:
-            return str(LIAResult.fail(ErrorCode.HOST_UNREACHABLE, "Internet: Disconnected ❌",
+            return str(WIAResult.fail(ErrorCode.HOST_UNREACHABLE, "Internet: Disconnected ❌",
                 suggestion="Check your network connection or firewall"))
 
     def dns_lookup(self, hostname: str = "google.com") -> str:
@@ -73,7 +73,7 @@ class NetAgent(LIAAgent):
             ip = socket.gethostbyname(hostname)
             return f"{hostname} → {ip}"
         except socket.gaierror:
-            return str(LIAResult.fail(ErrorCode.DNS_FAILURE, f"Cannot resolve: {hostname}"))
+            return str(WIAResult.fail(ErrorCode.DNS_FAILURE, f"Cannot resolve: {hostname}"))
 
     def extract_args_from_task(self, task: str, tool_name: str) -> dict:
         if tool_name == "ping_host":

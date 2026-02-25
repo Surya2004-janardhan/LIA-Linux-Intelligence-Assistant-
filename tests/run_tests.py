@@ -1,5 +1,5 @@
 """
-LIA Integration Tests — Verifies system integrity.
+WIA Integration Tests — Verifies system integrity.
 
 Tests:
 1. Orchestrator routing (mock)
@@ -23,10 +23,10 @@ from core.context_engine import context_engine
 from core.feedback import feedback_manager
 from core.orchestrator import Orchestrator
 from agents.sys_agent import SysAgent
-from core.errors import LIAResult, ErrorCode
+from core.errors import WIAResult, ErrorCode
 
 
-class TestLIA(unittest.TestCase):
+class TestWIA(unittest.TestCase):
     
     def setUp(self):
         # Create temp environment

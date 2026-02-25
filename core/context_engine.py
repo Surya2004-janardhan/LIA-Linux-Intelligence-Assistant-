@@ -1,5 +1,5 @@
 """
-LIA Context Engine — Dynamic system context injection.
+WIA Context Engine — Dynamic system context injection.
 
 Before the LLM generates any plan, this module gathers real-time system state
 so the LLM can make informed decisions instead of hallucinating.

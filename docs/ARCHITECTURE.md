@@ -1,13 +1,13 @@
-# LIA Architecture — Production System Design
+# WIA Architecture — Production System Design
 
 ## System Overview
 
-LIA is a **local-first, multi-agent OS wrapper** that uses a local LLM to translate natural language into system actions. Every OS interaction passes through abstraction layers that enforce safety, permissions, and auditability.
+WIA is a **local-first, multi-agent OS wrapper** that uses a local LLM to translate natural language into system actions. Every OS interaction passes through abstraction layers that enforce safety, permissions, and auditability.
 
 ```
 ┌─────────────────────────────────────────────────────────────────┐
 │                     USER INTERFACES                             │
-│  CLI (lia.py) ──── GUI (Flet) ──── TUI (Textual/Rich)         │
+│  CLI (WIA.py) ──── GUI (Flet) ──── TUI (Textual/Rich)         │
 └─────────────┬───────────────────────────────────────────────────┘
               │
               ▼
@@ -82,7 +82,7 @@ LIA is a **local-first, multi-agent OS wrapper** that uses a local LLM to transl
 ## Data Flow: "Why is my PC slow?"
 
 ```
-1. USER  → lia.py ask "why is my PC slow?"
+1. USER  → WIA.py ask "why is my PC slow?"
 2. CLI   → Orchestrator.run("why is my PC slow?")
 3. CONTEXT ENGINE
    ├─ Detects performance keywords → gathers CPU, RAM, top processes
@@ -201,7 +201,7 @@ Every error is typed with a code, severity, and recovery suggestion:
 ```python
 # Instead of: return "Error: file not found"
 # Agents use:
-return str(LIAResult.fail(
+return str(WIAResult.fail(
     ErrorCode.FILE_NOT_FOUND,       # Code 201
     "File not found: report.pdf",   # Message
     severity=ErrorSeverity.MEDIUM,  # Severity
@@ -220,7 +220,7 @@ Error domains: Permission (1xx), File (2xx), Network (3xx), LLM (4xx), Agent (5x
 ## Feedback Loop (RAG)
 
 ```
-1. User runs: lia ask "check disk space"
+1. User runs: WIA ask "check disk space"
 2. SysAgent executes → "C: 85% used (50GB free)"
 3. User rates: ⭐⭐⭐⭐⭐
 4. Stored in: memory/feedback.db
@@ -237,7 +237,7 @@ Next time someone asks "how much disk space do I have?":
 
 | File | Purpose | Lines |
 |------|---------|-------|
-| `lia.py` | Entry point, CLI commands, rich output | ~190 |
+| `WIA.py` | Entry point, CLI commands, rich output | ~190 |
 | `core/orchestrator.py` | Plan + execute with context/RAG | ~130 |
 | `core/os_layer.py` | OS abstraction, signals, subprocess | ~200 |
 | `core/safety.py` | Destructive command guardrails | ~130 |
@@ -257,11 +257,11 @@ Next time someone asks "how much disk space do I have?":
 
 ## Adding a New Agent (5 minutes)
 
-1. Create `agents/your_agent.py`, extend `LIAAgent`
+1. Create `agents/your_agent.py`, extend `WIAAgent`
 2. Register tools with keywords in `__init__`
 3. Implement `extract_args_from_task()` for regex extraction
 4. Call `self.smart_execute(task)` in `execute()`
-5. Import and add to the agents list in `lia.py`
+5. Import and add to the agents list in `WIA.py`
 
 The Orchestrator auto-discovers it. No routing rules to update.
 

@@ -1,13 +1,13 @@
 import os
 import shutil
 import re
-from agents.base_agent import LIAAgent
+from agents.base_agent import WIAAgent
 from core.logger import logger
 from core.os_layer import os_layer
 from core.permissions import permission_manager, Operation
-from core.errors import LIAResult, ErrorCode, ErrorSeverity
+from core.errors import WIAResult, ErrorCode, ErrorSeverity
 
-class FileAgent(LIAAgent):
+class FileAgent(WIAAgent):
     def __init__(self):
         super().__init__("FileAgent", ["File search", "Organization", "Backup", "Clean up"])
         
@@ -47,11 +47,11 @@ class FileAgent(LIAAgent):
 
     def list_directory(self, path: str = ".") -> str:
         if not permission_manager.is_path_allowed(path, Operation.READ):
-            return str(LIAResult.fail(ErrorCode.PATH_DENIED, f"Access denied: {path}"))
+            return str(WIAResult.fail(ErrorCode.PATH_DENIED, f"Access denied: {path}"))
         
         result = os_layer.safe_listdir(path)
         if not result["success"]:
-            return str(LIAResult.fail(ErrorCode.DIR_NOT_FOUND, result["error"]))
+            return str(WIAResult.fail(ErrorCode.DIR_NOT_FOUND, result["error"]))
         
         items = result["items"]
         if not items:
@@ -79,32 +79,32 @@ class FileAgent(LIAAgent):
 
     def move_file(self, src: str, dest: str) -> str:
         if not permission_manager.is_path_allowed(src, Operation.READ):
-            return str(LIAResult.fail(ErrorCode.PATH_DENIED, f"Cannot read: {src}"))
+            return str(WIAResult.fail(ErrorCode.PATH_DENIED, f"Cannot read: {src}"))
         if not permission_manager.is_path_allowed(dest, Operation.WRITE):
-            return str(LIAResult.fail(ErrorCode.PATH_DENIED, f"Cannot write to: {dest}"))
+            return str(WIAResult.fail(ErrorCode.PATH_DENIED, f"Cannot write to: {dest}"))
         if not permission_manager.check_agent_operation("FileAgent", Operation.WRITE):
-            return str(LIAResult.fail(ErrorCode.PATH_DENIED, "FileAgent write permission denied"))
+            return str(WIAResult.fail(ErrorCode.PATH_DENIED, "FileAgent write permission denied"))
         
         try:
             shutil.move(src, dest)
             return f"✅ Moved: {src} → {dest}"
         except FileNotFoundError:
-            return str(LIAResult.fail(ErrorCode.FILE_NOT_FOUND, f"Source not found: {src}"))
+            return str(WIAResult.fail(ErrorCode.FILE_NOT_FOUND, f"Source not found: {src}"))
         except PermissionError:
-            return str(LIAResult.fail(ErrorCode.OS_PERMISSION_DENIED, f"OS denied access to move {src}"))
+            return str(WIAResult.fail(ErrorCode.OS_PERMISSION_DENIED, f"OS denied access to move {src}"))
         except Exception as e:
-            return str(LIAResult.fail(ErrorCode.FILE_NOT_FOUND, str(e)))
+            return str(WIAResult.fail(ErrorCode.FILE_NOT_FOUND, str(e)))
 
     def create_directory(self, path: str) -> str:
         if not permission_manager.is_path_allowed(path, Operation.WRITE):
-            return str(LIAResult.fail(ErrorCode.PATH_DENIED, f"Cannot create directory at: {path}"))
+            return str(WIAResult.fail(ErrorCode.PATH_DENIED, f"Cannot create directory at: {path}"))
         try:
             os.makedirs(path, exist_ok=True)
             return f"✅ Directory created: {path}"
         except PermissionError:
-            return str(LIAResult.fail(ErrorCode.OS_PERMISSION_DENIED, f"OS denied: {path}"))
+            return str(WIAResult.fail(ErrorCode.OS_PERMISSION_DENIED, f"OS denied: {path}"))
         except Exception as e:
-            return str(LIAResult.fail(ErrorCode.FILE_NOT_FOUND, str(e)))
+            return str(WIAResult.fail(ErrorCode.FILE_NOT_FOUND, str(e)))
 
     def find_files(self, pattern: str, root: str = ".") -> str:
         found = []
@@ -119,9 +119,9 @@ class FileAgent(LIAAgent):
                     found.append(f"  ... (capped at 100 results)")
                     break
         except PermissionError:
-            return str(LIAResult.fail(ErrorCode.OS_PERMISSION_DENIED, f"OS denied access to {root}"))
+            return str(WIAResult.fail(ErrorCode.OS_PERMISSION_DENIED, f"OS denied access to {root}"))
         except Exception as e:
-            return str(LIAResult.fail(ErrorCode.FILE_NOT_FOUND, str(e)))
+            return str(WIAResult.fail(ErrorCode.FILE_NOT_FOUND, str(e)))
         
         if not found:
             return f"No files matching '{pattern}' found."
@@ -130,7 +130,7 @@ class FileAgent(LIAAgent):
     def file_info(self, path: str) -> str:
         resolved = os_layer.resolve_path(path)
         if not os.path.exists(resolved):
-            return str(LIAResult.fail(ErrorCode.FILE_NOT_FOUND, f"Not found: {path}"))
+            return str(WIAResult.fail(ErrorCode.FILE_NOT_FOUND, f"Not found: {path}"))
         
         import time
         stat = os.stat(resolved)

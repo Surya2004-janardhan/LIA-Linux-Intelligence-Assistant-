@@ -9,17 +9,17 @@ from core.feedback import feedback_manager
 from core.safety import safety_guard
 from core.telemetry import telemetry
 import time
-from agents.base_agent import LIAAgent
+from agents.base_agent import WIAAgent
 
 class Orchestrator:
-    def __init__(self, agents: List[LIAAgent]):
+    def __init__(self, agents: List[WIAAgent]):
         self.agents = {agent.name: agent for agent in agents}
         self.history = []
 
     def _get_system_prompt(self, context: str = "") -> str:
         agent_descriptions = "\n".join([f"- {a.get_capabilities_prompt()}" for a in self.agents.values()])
         
-        prompt = f"""You are the LIA Orchestrator. Break user requests into tasks for specialized agents.
+        prompt = f"""You are the WIA Orchestrator. Break user requests into tasks for specialized agents.
 
 Agents:
 {agent_descriptions}

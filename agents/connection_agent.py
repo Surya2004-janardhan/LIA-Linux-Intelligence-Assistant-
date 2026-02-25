@@ -1,10 +1,10 @@
-from agents.base_agent import LIAAgent
+from agents.base_agent import WIAAgent
 from core.logger import logger
 from core.config import config
 from core.permissions import permission_manager
-from core.errors import LIAResult, ErrorCode, ErrorSeverity
+from core.errors import WIAResult, ErrorCode, ErrorSeverity
 
-class ConnectionAgent(LIAAgent):
+class ConnectionAgent(WIAAgent):
     def __init__(self):
         super().__init__("ConnectionAgent", ["Email integration", "Calendar access", "API connections"])
         
@@ -17,7 +17,7 @@ class ConnectionAgent(LIAAgent):
 
     def check_gmail(self) -> str:
         if not permission_manager.is_connection_active("gmail"):
-            return str(LIAResult.fail(
+            return str(WIAResult.fail(
                 ErrorCode.CONNECTION_DISABLED,
                 "Gmail integration is disabled.",
                 severity=ErrorSeverity.LOW,
@@ -28,18 +28,18 @@ class ConnectionAgent(LIAAgent):
 
     def send_draft(self, to: str = "", subject: str = "", body: str = "") -> str:
         if not permission_manager.is_connection_active("gmail"):
-            return str(LIAResult.fail(
+            return str(WIAResult.fail(
                 ErrorCode.CONNECTION_DISABLED,
                 "Gmail integration is disabled.",
                 suggestion="Enable in Settings → Connections → Gmail"
             ))
         if not to:
-            return str(LIAResult.fail(ErrorCode.INVALID_ARGS, "No recipient specified."))
+            return str(WIAResult.fail(ErrorCode.INVALID_ARGS, "No recipient specified."))
         return f"✅ Draft created: To={to}, Subject={subject}"
 
     def check_calendar(self) -> str:
         if not permission_manager.is_connection_active("calendar"):
-            return str(LIAResult.fail(
+            return str(WIAResult.fail(
                 ErrorCode.CONNECTION_DISABLED,
                 "Calendar integration is disabled.",
                 severity=ErrorSeverity.LOW,

@@ -1,7 +1,7 @@
-# LIA Code Review — Honest Assessment & Fixes Applied
+# WIA Code Review — Honest Assessment & Fixes Applied
 
 **Date**: 2026-02-10  
-**Scope**: Every file in the LIA codebase  
+**Scope**: Every file in the WIA codebase  
 **Verdict**: 12 bugs found, 8 architectural issues, all fixed.
 
 ---
@@ -18,9 +18,9 @@
 **Problem**: `store()` method used `Any` type hint but `from typing import Any` was missing.  
 **Fix**: Added proper imports.
 
-### 3. `lia.py` — Missing `ask` Command
+### 3. `WIA.py` — Missing `ask` Command
 **Severity**: HIGH (CLI unusable)  
-**Problem**: The `ask` command was lost during GUI integration. Users had no way to query LIA from terminal.  
+**Problem**: The `ask` command was lost during GUI integration. Users had no way to query WIA from terminal.  
 **Fix**: Restored `ask`, added `status`, `help`, and unknown command handling.
 
 ---
@@ -80,9 +80,9 @@ Every agent now has `extract_args_from_task()` using regex:
 
 ### 12. User-Friendly CLI
 Added proper CLI with:
-- `lia.py help` — shows all commands with examples
-- `lia.py status` — shows agents, model, config state
-- `lia.py run` (no args) — lists available workflows
+- `WIA.py help` — shows all commands with examples
+- `WIA.py status` — shows agents, model, config state
+- `WIA.py run` (no args) — lists available workflows
 - Formatted output with box drawing characters
 - Unknown command handling with suggestions
 

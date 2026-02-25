@@ -1,5 +1,5 @@
 """
-LIA Safety Guardrails — Destructive command detection, dry-run mode, and command validation.
+WIA Safety Guardrails — Destructive command detection, dry-run mode, and command validation.
 
 This is the layer between the LLM output and actual execution.
 Every command passes through here before touching the OS.

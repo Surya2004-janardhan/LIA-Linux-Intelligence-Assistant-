@@ -1,10 +1,10 @@
 import re
-from agents.base_agent import LIAAgent
+from agents.base_agent import WIAAgent
 from core.logger import logger
 from core.os_layer import os_layer
-from core.errors import LIAResult, ErrorCode
+from core.errors import WIAResult, ErrorCode
 
-class DockerAgent(LIAAgent):
+class DockerAgent(WIAAgent):
     def __init__(self):
         super().__init__("DockerAgent", ["Container management", "Image operations", "Docker Compose"])
         
@@ -25,12 +25,12 @@ class DockerAgent(LIAAgent):
         result = os_layer.run_command(cmd, timeout=timeout)
         if not result["success"]:
             if "not found" in result["stderr"].lower() or result["returncode"] == -1:
-                return str(LIAResult.fail(ErrorCode.DEPENDENCY_MISSING,
+                return str(WIAResult.fail(ErrorCode.DEPENDENCY_MISSING,
                     "Docker not found", suggestion="Install Docker: https://docs.docker.com/get-docker/"))
             if result["timed_out"]:
-                return str(LIAResult.fail(ErrorCode.COMMAND_TIMEOUT, 
+                return str(WIAResult.fail(ErrorCode.COMMAND_TIMEOUT, 
                     f"Docker command timed out after {timeout}s"))
-            return str(LIAResult.fail(ErrorCode.AGENT_CRASHED, result["stderr"]))
+            return str(WIAResult.fail(ErrorCode.AGENT_CRASHED, result["stderr"]))
         return result["stdout"] if result["stdout"] else "Command completed (no output)."
 
     def list_containers(self) -> str:
@@ -39,13 +39,13 @@ class DockerAgent(LIAAgent):
 
     def start_container(self, container_name: str) -> str:
         result = self._docker(["docker", "start", container_name])
-        if "LIAResult.fail" not in result and "Error" not in result:
+        if "WIAResult.fail" not in result and "Error" not in result:
             return f"✅ Container started: {container_name}"
         return result
 
     def stop_container(self, container_name: str) -> str:
         result = self._docker(["docker", "stop", container_name], timeout=15)
-        if "LIAResult.fail" not in result and "Error" not in result:
+        if "WIAResult.fail" not in result and "Error" not in result:
             return f"✅ Container stopped: {container_name}"
         return result
 

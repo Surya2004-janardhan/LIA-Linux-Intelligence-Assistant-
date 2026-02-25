@@ -1,7 +1,7 @@
 import logging
 import os
 
-def setup_logger(name="LIA"):
+def setup_logger(name="WIA"):
     # Create logs directory if it doesn't exist
     if not os.path.exists("logs"):
         os.makedirs("logs")
@@ -17,7 +17,7 @@ def setup_logger(name="LIA"):
     logger.addHandler(ch)
 
     # File Handler
-    fh = logging.FileHandler(f"logs/lia.log")
+    fh = logging.FileHandler(f"logs/WIA.log")
     fh.setLevel(logging.DEBUG)
     fh.setFormatter(formatter)
     logger.addHandler(fh)

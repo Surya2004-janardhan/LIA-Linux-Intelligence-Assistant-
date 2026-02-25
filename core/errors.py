@@ -1,5 +1,5 @@
 """
-LIA Error System — Structured errors with codes, severity, and recovery suggestions.
+WIA Error System — Structured errors with codes, severity, and recovery suggestions.
 Replaces raw string errors with typed, actionable error objects.
 """
 from enum import Enum
@@ -57,7 +57,7 @@ class ErrorCode(Enum):
     CONFIG_KEY_MISSING = 702
 
 
-class LIAError:
+class WIAError:
     """Structured error with code, severity, message, and recovery suggestion."""
     
     def __init__(self, code: ErrorCode, message: str, 
@@ -79,8 +79,8 @@ class LIAError:
             ErrorCode.LLM_TIMEOUT: "Try a simpler query or check if the model is loaded",
             ErrorCode.COMMAND_NOT_FOUND: "Install the required tool or check your PATH",
             ErrorCode.COMMAND_TIMEOUT: "The command took too long. Try with a shorter timeout.",
-            ErrorCode.AGENT_NOT_FOUND: "Check agent name. Run 'lia.py status' to see available agents.",
-            ErrorCode.OS_PERMISSION_DENIED: "Run LIA with appropriate permissions or check file ownership",
+            ErrorCode.AGENT_NOT_FOUND: "Check agent name. Run 'WIA.py status' to see available agents.",
+            ErrorCode.OS_PERMISSION_DENIED: "Run WIA with appropriate permissions or check file ownership",
             ErrorCode.DEPENDENCY_MISSING: "Install missing dependency: pip install <package>",
             ErrorCode.WRITE_NOT_ALLOWED: "Database agent only supports SELECT queries for safety",
         }
@@ -108,30 +108,30 @@ class LIAError:
         return self.to_user_string()
 
     def __repr__(self):
-        return f"LIAError({self.code.name}, severity={self.severity.value})"
+        return f"WIAError({self.code.name}, severity={self.severity.value})"
 
 
-class LIAResult:
+class WIAResult:
     """
     Standardized result wrapper. Every agent tool should return this.
     Replaces raw strings with structured success/error data.
     """
-    def __init__(self, success: bool, data: str = "", error: LIAError = None):
+    def __init__(self, success: bool, data: str = "", error: WIAError = None):
         self.success = success
         self.data = data
         self.error = error
     
     @staticmethod
-    def ok(data: str) -> 'LIAResult':
-        return LIAResult(success=True, data=data)
+    def ok(data: str) -> 'WIAResult':
+        return WIAResult(success=True, data=data)
     
     @staticmethod
     def fail(code: ErrorCode, message: str, severity: ErrorSeverity = ErrorSeverity.MEDIUM, 
-             suggestion: str = None) -> 'LIAResult':
-        return LIAResult(
+             suggestion: str = None) -> 'WIAResult':
+        return WIAResult(
             success=False, 
             data="",
-            error=LIAError(code, message, severity, suggestion)
+            error=WIAError(code, message, severity, suggestion)
         )
     
     def __str__(self):

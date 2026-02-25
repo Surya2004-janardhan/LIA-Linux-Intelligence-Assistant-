@@ -1,5 +1,5 @@
 """
-LIA Base Agent — Two-Tier Smart Routing (Async).
+WIA Base Agent — Two-Tier Smart Routing (Async).
 Tier 1: Keyword match (0 tokens)
 Tier 2: LLM fallback (200+ tokens)
 Now fully async.
@@ -9,9 +9,9 @@ import asyncio
 from typing import Dict, Any, Tuple
 from core.llm_bridge import llm_bridge
 from core.logger import logger
-from core.errors import LIAResult, ErrorCode
+from core.errors import WIAResult, ErrorCode
 
-class LIAAgent:
+class WIAAgent:
     def __init__(self, name: str, capabilities: list):
         self.name = name
         self.capabilities = capabilities

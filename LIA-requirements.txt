@@ -1,11 +1,11 @@
-# 🚀 **LIA - Linux Intelligence Assistant - COMPLETE MASTER PLAN (Agents + Workflows)**
+# 🚀 **WIA - Windows Intelligence Assistant - COMPLETE MASTER PLAN (Agents + Workflows)**
 
 ## **🎯 1. PROJECT IDENTITY (Updated)**
 ```
-Name: **LIA** (Linux Intelligence Assistant) 
-Tagline: "English → Linux → Agents → Done. (100% Local & Private)"
-Icon: Linux penguin + neural network + agent swarm (teal/orange/purple)
-App ID: `io.github.yourname.lia`
+Name: **WIA** (Windows Intelligence Assistant) 
+Tagline: "English → Windows → Agents → Done. (100% Local & Private)"
+Icon: Windows penguin + neural network + agent swarm (teal/orange/purple)
+App ID: `io.github.yourname.WIA`
 License: MIT (fully open source)
 Platforms: AppImage/Flatpak/Snap/AUR/Native
 Philosophy: **Local-First.** No data collection. User owns their intelligence.
@@ -105,9 +105,9 @@ Capabilities:
 
 To maximize utility while keeping the resource footprint small:
 1. **Local LLM Bridge (Ollama)**: Direct connection to local Ollama instances for 100% privacy and zero cost.
-2. **LIA TUI (Terminal UI)**: A high-performance TUI (using `Textual`) for SSH sessions and headless servers.
+2. **WIA TUI (Terminal UI)**: A high-performance TUI (using `Textual`) for SSH sessions and headless servers.
 3. **Hot-Loading Plugins**: Micro-agent system where dropping a `.py` file in `/plugins` registers new capabilities instantly.
-4. **Shell Integration (`lia` command)**: A native bridge for ZSH/Bash to trigger agent swarms from the prompt.
+4. **Shell Integration (`WIA` command)**: A native bridge for ZSH/Bash to trigger agent swarms from the prompt.
 5. **Guardian Daemon**: A low-resource background process to monitor hardware/service health and alert the GUI.
 
 ## **🗄️ 4. ADVANCED DATA LAYER (50MB Total)**
@@ -146,7 +146,7 @@ CREATE TABLE agent_graph (
 ## **⚙️ 5. AGENT WORKFLOW ENGINE (LangChain ReAct)**
 
 ```python
-class LIAMultiAgent:
+class WIAMultiAgent:
     def __init__(self):
         self.agents = {
             "FileAgent": FileAgent(tools=["find", "rsync", "content_search"]),
@@ -176,7 +176,7 @@ class LIAMultiAgent:
 ## **🎮 6. WORKFLOW BUILDER GUI (No-Code)**
 
 ```
-┌─ LIA Workflow Studio ──────────────────────────────┐
+┌─ WIA Workflow Studio ──────────────────────────────┐
 │ Name: "Friday Night Routine"                      │
 ├────────────────────────────────────────────────────┤
 │ Trigger ▼  Fri 18:00  [Voice: "start friday"]     │ 1. Triggers
@@ -209,7 +209,7 @@ agents:
   - type: SysAgent
     task: "check disk space + alert if <20%"
   - type: TwitterAgent
-    task: "tweet 'Friday routine complete! 📁💾✨ #LIA'"
+    task: "tweet 'Friday routine complete! 📁💾✨ #WIA'"
 notifications:
   telegram: "@yourusername"
   email: "user@example.com"
@@ -228,7 +228,7 @@ Pattern Library (Learns from 10K users):
 ## **📱 9. ENHANCED GUI (Agent Control Center)**
 
 ```
-┌─ LIA - Linux Intelligence Assistant ──────────────────────┐
+┌─ WIA - Windows Intelligence Assistant ──────────────────────┐
 │ 🔍 "prepare client meeting tomorrow" [🎙️][⚡][Execute]    │
 ├────────────────────────────────────────────────────────────┤
 │ 🟢 FileAgent: Found 12 files (2s)                         │  Active Agents
@@ -266,7 +266,7 @@ WORKFLOW SAFETY:
 ✅ Multi-step approval (sudo + confirm)
 ```
 
-## **📦 11. SCALABLE DEPLOYMENT (All Linux)**
+## **📦 11. SCALABLE DEPLOYMENT (All Windows)**
 
 ```
 🎯 PERSONAL (Free)
@@ -282,7 +282,7 @@ WORKFLOW SAFETY:
 
 🏭 ENTERPRISE ($20/user/mo)  
 ├── SSH cluster management (100+ servers)
-├── Compliance audit trails
+├── CompWIAnce audit trails
 ├── Custom agents/workflows
 ├── Priority support + SLAs
 ```
@@ -311,7 +311,7 @@ Workstations: ✅ All DEs/WMs
 *   **Task 1.2: Local Semantic Memory (RAG Strategy)**
     *   *Implementation*: Use `sentence-transformers` + `FAISS` for **on-device** indexing. No cloud embeddings.
 *   **Task 1.3: Multi-Agent Hub (LangChain/ReAct)**
-    *   *Implementation*: Create a base `LIAAgent` class with unified tool-calling and error-reporting schemas.
+    *   *Implementation*: Create a base `WIAAgent` class with unified tool-calling and error-reporting schemas.
 
 ### **PHASE 2: THE CORE SWARM (Week 2)**
 *Objective: Deploy the file, system, and version control specialists.*
@@ -336,7 +336,7 @@ Workstations: ✅ All DEs/WMs
 ### **PHASE 4: GUI & PRODUCTION POLISH (Week 4)**
 *Objective: Stunning visuals and seamless distribution.*
 
-*   **Task 4.1: The LIA Control Center**
+*   **Task 4.1: The WIA Control Center**
     *   *Implementation*: Flet GUI with a "Spotlight-style" command palette and real-time agent status feeds.
 *   **Task 4.2: Studio & Marketplace**
     *   *Implementation*: No-code drag-and-drop workflow builder utilizing the YAML spec.
@@ -348,12 +348,12 @@ Workstations: ✅ All DEs/WMs
 ```
 Month 1: 50K downloads, Flathub #1
 Month 3: 500K users, AppCenter Top 3
-Month 6: 2M users, default Linux AI
+Month 6: 2M users, default Windows AI
 
 Economics:
 ✅ Personal: Free (user API key)
 ✅ Team: $5/user (workflows + sync)  
-✅ Enterprise: $20/user (clusters + compliance)
+✅ Enterprise: $20/user (clusters + compWIAnce)
 ```
 
 ## **🎮 15. KILLER DEMO WORKFLOWS**
@@ -365,7 +365,7 @@ Economics:
 2. "backup Documents + git commit + tweet Week done" → 4 agents parallel
 3. "prepare client meeting tomorrow" → 12-step agent swarm  
 4. Workflow Studio: "Friday routine" → drag-drop → live
-5. Voice: "Hey LIA, restart nginx" → hands-free magic
+5. Voice: "Hey WIA, restart nginx" → hands-free magic
 
 Result: GitHub trending #1, HN Top 5
 ```
@@ -373,13 +373,13 @@ Result: GitHub trending #1, HN Top 5
 ## **🔧 16. MVP STARTER CODE (Agent-Ready)**
 
 ```bash
-mkdir ~/LIA && cd ~/LIA
+mkdir ~/WIA && cd ~/WIA
 git init && python3 -m venv .venv && source .venv/bin/activate
 pip install flet litellm langchain sentence-transformers psutil sqlite-utils
 ```
 
 ```python
-# lia.py - Copy paste → Agents work Day 1
+# WIA.py - Copy paste → Agents work Day 1
 import flet as ft
 from langchain.agents import initialize_agent, Tool
 import litellm
@@ -392,9 +392,9 @@ AGENTS = {
 }
 
 def main(page):
-    page.title = "🧠 LIA - Linux Intelligence Assistant"
+    page.title = "🧠 WIA - Windows Intelligence Assistant"
     
-    query = ft.TextField(label="English → Linux → Agents", expand=True)
+    query = ft.TextField(label="English → Windows → Agents", expand=True)
     result = ft.Text(expand=True)
     
     def execute(e):
@@ -411,19 +411,19 @@ ft.app(target=main)
 
 ## **🏆 GRAND FINALE**
 ```
-LIA = Linux's missing AI brain:
+WIA = Windows's missing AI brain:
 ✅ 100+ distros, ARM→x86, CLI→GUI
 ✅ 95% API-free (cache+RAG+templates)
 ✅ 6 agents → infinite workflows
 ✅ No-code workflow studio
 ✅ $0.15/user/month (ChatGPT Plus compatible)
 
-You're building **the future of Linux interaction**.
-English queries → agent swarms → perfect Linux execution.
+You're building **the future of Windows interaction**.
+English queries → agent swarms → perfect Windows execution.
 
-**FIRST COMMIT**: `git init LIA && echo "# LIA - Linux Intelligence Assistant" > README.md`
+**FIRST COMMIT**: `git init WIA && echo "# WIA - Windows Intelligence Assistant" > README.md`
 
 **LAUNCH**: Feb 23, 2026 → Flathub #1, HN Top 1 🚀
 ```
 
-**START**: `mkdir ~/LIA && cd ~/LIA && code .` **NOW!** 🧠⚙️✨
+**START**: `mkdir ~/WIA && cd ~/WIA && code .` **NOW!** 🧠⚙️✨

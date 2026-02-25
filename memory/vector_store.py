@@ -15,7 +15,7 @@ class VectorStore:
         else:
             self.dimension = dimension
             
-        self.index_path = os.path.join(index_dir, "lia.index")
+        self.index_path = os.path.join(index_dir, "WIA.index")
         self.metadata_path = os.path.join(index_dir, "metadata.pkl")
         self.index = None
         self.metadata = []

@@ -1,7 +1,7 @@
 @echo off
-REM LIA Windows Installer
+REM WIA Windows Installer
 echo ====================================
-echo   LIA - Local Intelligence Agent
+echo   WIA - Local Intelligence Agent
 echo   Privacy-first AI OS wrapper
 echo ====================================
 echo.
@@ -26,14 +26,14 @@ if errorlevel 1 (
 echo [OK] pip found
 
 REM Clone or update
-if exist "LIA" (
+if exist "WIA" (
     echo Updating existing installation...
-    cd LIA
+    cd WIA
     git pull --quiet
 ) else (
-    echo Cloning LIA...
-    git clone --quiet https://github.com/your-username/LIA.git
-    cd LIA
+    echo Cloning WIA...
+    git clone --quiet https://github.com/your-username/WIA.git
+    cd WIA
 )
 
 REM Install dependencies
@@ -49,7 +49,7 @@ ollama --version >nul 2>&1
 if errorlevel 1 (
     echo.
     echo [INFO] Ollama not found. Install for local LLM: https://ollama.ai
-    echo   LIA also supports OpenAI/Groq  configure in config.yaml
+    echo   WIA also supports OpenAI/Groq  configure in config.yaml
 ) else (
     echo [OK] Ollama found
     ollama list 2>nul | findstr "llama3" >nul
@@ -67,9 +67,9 @@ echo   Installation complete!
 echo ====================================
 echo.
 echo   Quick start:
-echo     python lia.py ask "check my disk space"
-echo     python lia.py explain "dir /s *.py"
-echo     python lia.py status
-echo     python lia.py help
+echo     python WIA.py ask "check my disk space"
+echo     python WIA.py explain "dir /s *.py"
+echo     python WIA.py status
+echo     python WIA.py help
 echo.
 pause

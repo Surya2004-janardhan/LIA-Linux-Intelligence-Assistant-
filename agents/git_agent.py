@@ -1,10 +1,10 @@
 import re
-from agents.base_agent import LIAAgent
+from agents.base_agent import WIAAgent
 from core.logger import logger
 from core.os_layer import os_layer
-from core.errors import LIAResult, ErrorCode
+from core.errors import WIAResult, ErrorCode
 
-class GitAgent(LIAAgent):
+class GitAgent(WIAAgent):
     def __init__(self):
         super().__init__("GitAgent", ["Version control", "Commits", "PR management", "Repo status"])
         
@@ -24,47 +24,47 @@ class GitAgent(LIAAgent):
     def git_status(self) -> str:
         result = os_layer.run_command(['git', 'status', '--short'], timeout=10)
         if not result["success"]:
-            return str(LIAResult.fail(ErrorCode.COMMAND_NOT_FOUND, result["stderr"]))
+            return str(WIAResult.fail(ErrorCode.COMMAND_NOT_FOUND, result["stderr"]))
         return result["stdout"] if result["stdout"] else "Working tree clean ✅"
 
-    def git_commit(self, message: str = "Auto-commit by LIA") -> str:
+    def git_commit(self, message: str = "Auto-commit by WIA") -> str:
         # Stage
         stage = os_layer.run_command(['git', 'add', '.'], timeout=10)
         if not stage["success"]:
-            return str(LIAResult.fail(ErrorCode.COMMAND_NOT_FOUND, stage["stderr"]))
+            return str(WIAResult.fail(ErrorCode.COMMAND_NOT_FOUND, stage["stderr"]))
         # Commit
         result = os_layer.run_command(['git', 'commit', '-m', message], timeout=15)
         if not result["success"]:
             if "nothing to commit" in result["stderr"].lower() or "nothing to commit" in result["stdout"].lower():
                 return "Nothing to commit — working tree clean."
-            return str(LIAResult.fail(ErrorCode.AGENT_CRASHED, result["stderr"]))
+            return str(WIAResult.fail(ErrorCode.AGENT_CRASHED, result["stderr"]))
         return f"✅ Committed: {message}\n{result['stdout']}"
 
     def git_log(self, count: int = 10) -> str:
         result = os_layer.run_command(['git', 'log', '--oneline', '-n', str(count)], timeout=10)
         if not result["success"]:
-            return str(LIAResult.fail(ErrorCode.COMMAND_NOT_FOUND, result["stderr"]))
+            return str(WIAResult.fail(ErrorCode.COMMAND_NOT_FOUND, result["stderr"]))
         return result["stdout"]
 
     def git_diff(self) -> str:
         result = os_layer.run_command(['git', 'diff', '--stat'], timeout=10)
         if not result["success"]:
-            return str(LIAResult.fail(ErrorCode.COMMAND_NOT_FOUND, result["stderr"]))
+            return str(WIAResult.fail(ErrorCode.COMMAND_NOT_FOUND, result["stderr"]))
         return result["stdout"] if result["stdout"] else "No uncommitted changes."
 
     def git_branch(self) -> str:
         result = os_layer.run_command(['git', 'branch', '-a'], timeout=10)
         if not result["success"]:
-            return str(LIAResult.fail(ErrorCode.COMMAND_NOT_FOUND, result["stderr"]))
+            return str(WIAResult.fail(ErrorCode.COMMAND_NOT_FOUND, result["stderr"]))
         return result["stdout"]
 
     def gh_pr_list(self) -> str:
         result = os_layer.run_command(['gh', 'pr', 'list'], timeout=15)
         if not result["success"]:
             if "not found" in result["stderr"].lower() or result["returncode"] == -1:
-                return str(LIAResult.fail(ErrorCode.DEPENDENCY_MISSING, 
+                return str(WIAResult.fail(ErrorCode.DEPENDENCY_MISSING, 
                     "GitHub CLI (gh) not found", suggestion="Install: https://cli.github.com"))
-            return str(LIAResult.fail(ErrorCode.COMMAND_NOT_FOUND, result["stderr"]))
+            return str(WIAResult.fail(ErrorCode.COMMAND_NOT_FOUND, result["stderr"]))
         return result["stdout"] if result["stdout"] else "No open pull requests."
 
     def extract_args_from_task(self, task: str, tool_name: str) -> dict:
@@ -73,7 +73,7 @@ class GitAgent(LIAAgent):
             if match:
                 return {"message": match.group(1)}
             match = re.search(r"commit\s+(.+)", task, re.I)
-            return {"message": match.group(1).strip() if match else "Auto-commit by LIA"}
+            return {"message": match.group(1).strip() if match else "Auto-commit by WIA"}
         return {}
 
     def execute(self, task: str) -> str:

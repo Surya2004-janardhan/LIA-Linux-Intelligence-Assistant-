@@ -1,6 +1,6 @@
-# LIA Agent Ecosystem
+# WIA Agent Ecosystem
 
-LIA uses a **Dynamic Multi-Agent Swarm**. Agents are auto-discovered by the Orchestrator — add a new one and it's immediately available for routing.
+WIA uses a **Dynamic Multi-Agent Swarm**. Agents are auto-discovered by the Orchestrator — add a new one and it's immediately available for routing.
 
 ---
 
@@ -84,10 +84,10 @@ Task arrives at agent
 
 ```python
 # agents/weather_agent.py
-from agents.base_agent import LIAAgent
+from agents.base_agent import WIAAgent
 from core.logger import logger
 
-class WeatherAgent(LIAAgent):
+class WeatherAgent(WIAAgent):
     def __init__(self):
         super().__init__("WeatherAgent", ["Weather forecasts"])
         self.register_tool("get_weather", self.get_weather, 
@@ -108,7 +108,7 @@ class WeatherAgent(LIAAgent):
         return self.smart_execute(task)
 ```
 
-Then in `lia.py`:
+Then in `WIA.py`:
 ```python
 from agents.weather_agent import WeatherAgent
 

@@ -33,7 +33,7 @@ def _rich_print(text: str):
     except ImportError:
         print(text)
 
-def _print_results(results, title="LIA Response"):
+def _print_results(results, title="WIA Response"):
     try:
         from rich.console import Console
         from rich.panel import Panel
@@ -64,7 +64,7 @@ def _print_results(results, title="LIA Response"):
         print(f"{'═' * 50}\n")
 
 async def async_main():
-    logger.info("Initializing LIA (Async)...")
+    logger.info("Initializing WIA (Async)...")
     
     # Check setup (interactive prompt if needed)
     central_memory._ensure_setup()
@@ -97,7 +97,7 @@ async def async_main():
         if cmd == "ask":
             query = " ".join(sys.argv[2:])
             if not query:
-                print("Usage: python lia.py ask <your question>")
+                print("Usage: python WIA.py ask <your question>")
                 return
             logger.info(f"CLI Query: {query}")
             results = await orchestrator.run(query)
@@ -119,7 +119,7 @@ async def async_main():
         if cmd == "explain":
             command = " ".join(sys.argv[2:])
             if not command:
-                print("Usage: python lia.py explain <command>")
+                print("Usage: python WIA.py explain <command>")
                 return
             result = explain_command(command)
             _rich_print(result)
@@ -153,7 +153,7 @@ async def async_main():
             agent_count = len(orchestrator.agents)
             fb_stats = feedback_manager.get_feedback_stats()
             _rich_print(
-                f"LIA STATUS — {info['hostname']} (Linux Intelligence Agent)\n"
+                f"WIA STATUS — {info['hostname']} (Windows Intelligence Agent)\n"
                 f"{'─' * 35}\n"
                 f"Distro:    {info.get('distro', 'Unknown')}\n"
                 f"Kernel:    {info.get('kernel', 'Unknown')}\n"
@@ -168,7 +168,7 @@ async def async_main():
             print_help()
             return
 
-        print(f"Unknown command: '{cmd}'. Run 'lia help' for usage.")
+        print(f"Unknown command: '{cmd}'. Run 'WIA help' for usage.")
         return
 
     # Default to GUI (not async-compatible yet without major refactor, fallback to help)
@@ -176,7 +176,7 @@ async def async_main():
 
 def print_help():
     help_text = """
-LIA — Linux Intelligence Agent (Async Core)
+WIA — Windows Intelligence Agent (Async Core)
 
 COMMANDS:
   ask <query>         Execute tasks using natural language
@@ -186,13 +186,13 @@ COMMANDS:
   help                Show this message
   
 SETUP:
-  On first run, LIA will ask for permission to access specific directories.
+  On first run, WIA will ask for permission to access specific directories.
   This 'Root Context' is customizable and prevents unauthorized access.
 """
     try:
         from rich.console import Console
         from rich.panel import Panel
-        Console().print(Panel(help_text, title="LIA CLI", border_style="cyan"))
+        Console().print(Panel(help_text, title="WIA CLI", border_style="cyan"))
     except ImportError:
         print(help_text)
 

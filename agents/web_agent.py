@@ -1,10 +1,10 @@
 import re
 import webbrowser
-from agents.base_agent import LIAAgent
+from agents.base_agent import WIAAgent
 from core.logger import logger
-from core.errors import LIAResult, ErrorCode
+from core.errors import WIAResult, ErrorCode
 
-class WebAgent(LIAAgent):
+class WebAgent(WIAAgent):
     def __init__(self):
         super().__init__("WebAgent", ["Web browsing", "URL opening", "Google search"])
         
@@ -15,7 +15,7 @@ class WebAgent(LIAAgent):
 
     def open_url(self, url: str) -> str:
         if not url or not url.strip():
-            return str(LIAResult.fail(ErrorCode.INVALID_ARGS, "No URL provided"))
+            return str(WIAResult.fail(ErrorCode.INVALID_ARGS, "No URL provided"))
         
         # Auto-prefix protocol
         url = url.strip()
@@ -26,11 +26,11 @@ class WebAgent(LIAAgent):
             webbrowser.open(url)
             return f"✅ Opened: {url}"
         except Exception as e:
-            return str(LIAResult.fail(ErrorCode.AGENT_CRASHED, f"Failed to open browser: {e}"))
+            return str(WIAResult.fail(ErrorCode.AGENT_CRASHED, f"Failed to open browser: {e}"))
 
     def google_search(self, query: str) -> str:
         if not query or not query.strip():
-            return str(LIAResult.fail(ErrorCode.INVALID_ARGS, "No search query provided"))
+            return str(WIAResult.fail(ErrorCode.INVALID_ARGS, "No search query provided"))
         
         import urllib.parse
         encoded = urllib.parse.quote_plus(query)
@@ -39,7 +39,7 @@ class WebAgent(LIAAgent):
             webbrowser.open(url)
             return f"✅ Searching Google for: {query}"
         except Exception as e:
-            return str(LIAResult.fail(ErrorCode.AGENT_CRASHED, f"Failed to open browser: {e}"))
+            return str(WIAResult.fail(ErrorCode.AGENT_CRASHED, f"Failed to open browser: {e}"))
 
     def extract_args_from_task(self, task: str, tool_name: str) -> dict:
         if tool_name == "open_url":

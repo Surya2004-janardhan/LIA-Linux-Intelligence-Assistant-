@@ -1,11 +1,11 @@
 import re
 import sqlite3
 import shutil
-from agents.base_agent import LIAAgent
+from agents.base_agent import WIAAgent
 from core.logger import logger
-from core.errors import LIAResult, ErrorCode, ErrorSeverity
+from core.errors import WIAResult, ErrorCode, ErrorSeverity
 
-class DatabaseAgent(LIAAgent):
+class DatabaseAgent(WIAAgent):
     def __init__(self):
         super().__init__("DatabaseAgent", ["SQL queries", "Database backups", "Schema inspection"])
         
@@ -22,7 +22,7 @@ class DatabaseAgent(LIAAgent):
         # SAFETY: Only SELECT allowed
         clean_query = query.strip().upper()
         if not clean_query.startswith("SELECT"):
-            return str(LIAResult.fail(ErrorCode.WRITE_NOT_ALLOWED,
+            return str(WIAResult.fail(ErrorCode.WRITE_NOT_ALLOWED,
                 f"Only SELECT queries allowed. Got: {query[:50]}",
                 severity=ErrorSeverity.HIGH))
         
@@ -30,7 +30,7 @@ class DatabaseAgent(LIAAgent):
         dangerous = ["DROP", "DELETE", "UPDATE", "INSERT", "ALTER", "EXEC", ";"]
         for d in dangerous:
             if d in clean_query and d != ";":
-                return str(LIAResult.fail(ErrorCode.WRITE_NOT_ALLOWED,
+                return str(WIAResult.fail(ErrorCode.WRITE_NOT_ALLOWED,
                     f"Blocked dangerous keyword '{d}' in query"))
         
         try:
@@ -61,11 +61,11 @@ class DatabaseAgent(LIAAgent):
             return output
             
         except sqlite3.OperationalError as e:
-            return str(LIAResult.fail(ErrorCode.AGENT_CRASHED, f"SQL Error: {str(e)}"))
+            return str(WIAResult.fail(ErrorCode.AGENT_CRASHED, f"SQL Error: {str(e)}"))
         except FileNotFoundError:
-            return str(LIAResult.fail(ErrorCode.FILE_NOT_FOUND, f"Database not found: {db_path}"))
+            return str(WIAResult.fail(ErrorCode.FILE_NOT_FOUND, f"Database not found: {db_path}"))
         except Exception as e:
-            return str(LIAResult.fail(ErrorCode.AGENT_CRASHED, str(e)))
+            return str(WIAResult.fail(ErrorCode.AGENT_CRASHED, str(e)))
 
     def backup_db(self, db_path: str, backup_path: str = "") -> str:
         if not backup_path:
@@ -76,9 +76,9 @@ class DatabaseAgent(LIAAgent):
             shutil.copy2(db_path, backup_path)
             return f"✅ Backup created: {backup_path}"
         except FileNotFoundError:
-            return str(LIAResult.fail(ErrorCode.FILE_NOT_FOUND, f"Database not found: {db_path}"))
+            return str(WIAResult.fail(ErrorCode.FILE_NOT_FOUND, f"Database not found: {db_path}"))
         except Exception as e:
-            return str(LIAResult.fail(ErrorCode.AGENT_CRASHED, str(e)))
+            return str(WIAResult.fail(ErrorCode.AGENT_CRASHED, str(e)))
 
     def list_tables(self, db_path: str = "memory/audit_log.db") -> str:
         try:
@@ -91,7 +91,7 @@ class DatabaseAgent(LIAAgent):
                 return "No tables found."
             return "\n".join([f"  {'📊' if t == 'table' else '👁'} {name}" for name, t in items])
         except Exception as e:
-            return str(LIAResult.fail(ErrorCode.AGENT_CRASHED, str(e)))
+            return str(WIAResult.fail(ErrorCode.AGENT_CRASHED, str(e)))
 
     def table_info(self, db_path: str, table_name: str) -> str:
         try:
@@ -114,7 +114,7 @@ class DatabaseAgent(LIAAgent):
                 lines.append(f"  {col[1]:<20} {col[2]:<10}{pk}{nullable}")
             return "\n".join(lines)
         except Exception as e:
-            return str(LIAResult.fail(ErrorCode.AGENT_CRASHED, str(e)))
+            return str(WIAResult.fail(ErrorCode.AGENT_CRASHED, str(e)))
 
     def extract_args_from_task(self, task: str, tool_name: str) -> dict:
         if tool_name == "list_tables":

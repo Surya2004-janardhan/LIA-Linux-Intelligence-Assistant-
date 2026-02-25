@@ -1,5 +1,5 @@
 """
-LIA Feedback System — Local command rating and history-based RAG.
+WIA Feedback System — Local command rating and history-based RAG.
 
 Stores every successful command with user ratings.
 When a similar query comes in, retrieves the known-working command

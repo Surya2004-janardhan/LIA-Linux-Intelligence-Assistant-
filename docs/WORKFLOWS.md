@@ -1,4 +1,4 @@
-# LIA Workflows Guide
+# WIA Workflows Guide
 
 ## What are Workflows?
 
@@ -46,7 +46,7 @@ steps:
 
 **Run it**:
 ```bash
-python lia.py run friday_routine
+python WIA.py run friday_routine
 ```
 
 ---
@@ -77,15 +77,15 @@ workflow_engine.execute_workflow("my_workflow", variables={
 1. Create a new `.yaml` file in the `workflows/` directory
 2. Follow the structure above
 3. Use any of the 6 agents: FileAgent, SysAgent, GitAgent, NetAgent, WebAgent, ConnectionAgent
-4. Test with `python lia.py run your_workflow_name`
+4. Test with `python WIA.py run your_workflow_name`
 
 ---
 
 ## Workflow Marketplace (Coming Soon)
 
-LIA will support importing/exporting workflows to share with the community:
-- Export: `lia.py export friday_routine`
-- Import: `lia.py import community_workflow.yaml`
+WIA will support importing/exporting workflows to share with the community:
+- Export: `WIA.py export friday_routine`
+- Import: `WIA.py import community_workflow.yaml`
 
 ---
 

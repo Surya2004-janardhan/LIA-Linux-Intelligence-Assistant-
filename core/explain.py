@@ -1,7 +1,7 @@
 """
-LIA Explain Mode — Breaks down complex commands into readable explanations.
+WIA Explain Mode — Breaks down complex commands into readable explanations.
 
-Usage: python lia.py explain "find . -name '*.py' | xargs grep -l 'import os'"
+Usage: python WIA.py explain "find . -name '*.py' | xargs grep -l 'import os'"
 """
 from core.llm_bridge import llm_bridge
 from core.logger import logger

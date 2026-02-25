@@ -3,7 +3,7 @@ requires = ["setuptools>=68.0", "wheel"]
 build-backend = "setuptools.backends._legacy:_Backend"
 
 [project]
-name = "lia-agent"
+name = "WIA-agent"
 version = "0.9.0"
 description = "Local Intelligence Agent — Privacy-first multi-agent AI system for OS automation"
 readme = "README.md"
@@ -41,11 +41,11 @@ dependencies = [
 ]
 
 [project.scripts]
-lia = "lia:main"
+WIA = "WIA:main"
 
 [project.urls]
-Homepage = "https://github.com/your-username/LIA"
-Issues = "https://github.com/your-username/LIA/issues"
+Homepage = "https://github.com/your-username/WIA"
+Issues = "https://github.com/your-username/WIA/issues"
 
 [tool.setuptools.packages.find]
 include = ["agents*", "core*", "memory*", "ui*", "workflows*"]

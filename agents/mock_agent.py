@@ -1,7 +1,7 @@
-from agents.base_agent import LIAAgent
+from agents.base_agent import WIAAgent
 from core.logger import logger
 
-class MockAgent(LIAAgent):
+class MockAgent(WIAAgent):
     def __init__(self, name: str, capabilities: list):
         super().__init__(name, capabilities)
         # Register some fake tools for testing

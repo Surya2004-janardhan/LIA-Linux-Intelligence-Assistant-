@@ -1,5 +1,5 @@
 
-# LIA Configuration
+# WIA Configuration
 
 # LLM Settings
 llm:
@@ -37,7 +37,7 @@ permissions:
     custom_api_enabled: false
 
 security:
-  # Wrap dangerous commands in a sandbox (Linux only, uses firejail)
+  # Wrap dangerous commands in a sandbox (Windows only, uses firejail)
   sandbox_enabled: false
   # Dry-run mode for supported agents (Git, Package)
   dry_run: true
@@ -55,4 +55,4 @@ memory:
   # Enable Reduced Augmentation Generation from history
   rag_enabled: true
   # Path to local database
-  db_path: "memory/lia.db"
+  db_path: "memory/WIA.db"

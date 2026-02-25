@@ -1,5 +1,5 @@
 """
-LIA Multi-Provider LLM Bridge
+WIA Multi-Provider LLM Bridge
 
 Supports:
 - Ollama (local)

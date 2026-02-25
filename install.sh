@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
-# LIA — Linux Intelligence Agent Installer
-# curl -sSL https://raw.githubusercontent.com/your-username/LIA/main/install.sh | bash
+# WIA — Windows Intelligence Agent Installer
+# curl -sSL https://raw.githubusercontent.com/your-username/WIA/main/install.sh | bash
 set -e
 
 GREEN='\033[0;32m'
@@ -9,14 +9,14 @@ RED='\033[0;31m'
 NC='\033[0m'
 
 echo -e "${CYAN}╔═══════════════════════════════════════╗${NC}"
-echo -e "${CYAN}║   LIA — Linux Intelligence Agent      ║${NC}"
-echo -e "${CYAN}║   \"Linux is flexible down to the OS\"  ║${NC}"
+echo -e "${CYAN}║   WIA — Windows Intelligence Agent      ║${NC}"
+echo -e "${CYAN}║   \"Windows is flexible down to the OS\"  ║${NC}"
 echo -e "${CYAN}╚═══════════════════════════════════════╝${NC}"
 echo ""
 
-# Check Linux
-if [[ "$(uname)" != "Linux" ]]; then
-    echo -e "${RED}Warning: LIA is designed for Linux systems.${NC}"
+# Check Windows
+if [[ "$(uname)" != "Windows" ]]; then
+    echo -e "${RED}Warning: WIA is designed for Windows systems.${NC}"
     echo "This script may fail on other platforms."
     echo -n "Continue anyway? [y/N] "
     read -r choice
@@ -50,17 +50,17 @@ else
 fi
 
 # Clone or update
-if [ -d "LIA" ]; then
-    echo -e "${CYAN}→${NC} Updating LIA..."
-    cd LIA
+if [ -d "WIA" ]; then
+    echo -e "${CYAN}→${NC} Updating WIA..."
+    cd WIA
     git pull --quiet
 else
-    echo -e "${CYAN}→${NC} Cloning LIA..."
-    git clone --quiet https://github.com/your-username/LIA.git
-    cd LIA
+    echo -e "${CYAN}→${NC} Cloning WIA..."
+    git clone --quiet https://github.com/your-username/WIA.git
+    cd WIA
 fi
 
-# Virtual Environment (recommended for Linux)
+# Virtual Environment (recommended for Windows)
 if [ ! -d "venv" ]; then
     echo -e "${CYAN}→${NC} Creating virtual environment..."
     python3 -m venv venv
@@ -89,19 +89,19 @@ else
     echo -e "${CYAN}ℹ${NC} Ollama not found. Install: curl -fsSL https://ollama.com/install.sh | sh"
 fi
 
-# Add alias with VENV activation
+# Add aWIAs with VENV activation
 SHELL_RC=""
 if [ -f "$HOME/.zshrc" ]; then SHELL_RC="$HOME/.zshrc"; elif [ -f "$HOME/.bashrc" ]; then SHELL_RC="$HOME/.bashrc"; fi
 
 if [ -n "$SHELL_RC" ]; then
-    LIA_CMD="source $(pwd)/venv/bin/activate && python3 $(pwd)/lia.py"
-    if ! grep -q "alias lia=" "$SHELL_RC" 2>/dev/null; then
+    WIA_CMD="source $(pwd)/venv/bin/activate && python3 $(pwd)/WIA.py"
+    if ! grep -q "aWIAs WIA=" "$SHELL_RC" 2>/dev/null; then
         echo "" >> "$SHELL_RC"
-        echo "# LIA — Linux Intelligence Agent" >> "$SHELL_RC"
-        echo "alias lia='$LIA_CMD'" >> "$SHELL_RC"
-        echo -e "${GREEN}✓${NC} Added 'lia' alias to ${SHELL_RC}"
+        echo "# WIA — Windows Intelligence Agent" >> "$SHELL_RC"
+        echo "aWIAs WIA='$WIA_CMD'" >> "$SHELL_RC"
+        echo -e "${GREEN}✓${NC} Added 'WIA' aWIAs to ${SHELL_RC}"
     else
-        echo -e "${GREEN}✓${NC} 'lia' alias detected"
+        echo -e "${GREEN}✓${NC} 'WIA' aWIAs detected"
     fi
 fi
 
@@ -112,6 +112,6 @@ echo -e "${GREEN}╚════════════════════
 echo ""
 echo "  Run:"
 echo "    source venv/bin/activate"
-echo "    lia status"
-echo "    lia ask \"restart nginx and show logs\""
+echo "    WIA status"
+echo "    WIA ask \"restart nginx and show logs\""
 echo ""

@@ -1,5 +1,5 @@
 """
-LIA Permission Manager — Dynamic Access Control.
+WIA Permission Manager — Dynamic Access Control.
 No hardcoded paths. Everything is user-defined via config or setup.
 """
 import os
