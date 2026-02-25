@@ -21,43 +21,43 @@ class DockerAgent(WIAAgent):
         self.register_tool("container_logs", self.container_logs, "Shows container logs",
             keywords=["logs", "docker logs"])
 
-    def _docker(self, cmd: list, timeout: int = 30) -> str:
-        result = os_layer.run_command(cmd, timeout=timeout)
+    async def _docker(self, cmd: list, timeout: int = 30) -> str:
+        result = await os_layer.run_command(cmd, timeout=timeout)
         if not result["success"]:
             if "not found" in result["stderr"].lower() or result["returncode"] == -1:
                 return str(WIAResult.fail(ErrorCode.DEPENDENCY_MISSING,
-                    "Docker not found", suggestion="Install Docker: https://docs.docker.com/get-docker/"))
+                    "Docker not found", suggestion="Install Docker: https://docs.docker.com/desktop/install/windows-install/"))
             if result["timed_out"]:
                 return str(WIAResult.fail(ErrorCode.COMMAND_TIMEOUT, 
                     f"Docker command timed out after {timeout}s"))
             return str(WIAResult.fail(ErrorCode.AGENT_CRASHED, result["stderr"]))
         return result["stdout"] if result["stdout"] else "Command completed (no output)."
 
-    def list_containers(self) -> str:
-        return self._docker(["docker", "ps", "-a", "--format", 
+    async def list_containers(self) -> str:
+        return await self._docker(["docker", "ps", "-a", "--format", 
             "table {{.Names}}\t{{.Status}}\t{{.Ports}}\t{{.Image}}"])
 
-    def start_container(self, container_name: str) -> str:
-        result = self._docker(["docker", "start", container_name])
+    async def start_container(self, container_name: str) -> str:
+        result = await self._docker(["docker", "start", container_name])
         if "WIAResult.fail" not in result and "Error" not in result:
             return f"✅ Container started: {container_name}"
         return result
 
-    def stop_container(self, container_name: str) -> str:
-        result = self._docker(["docker", "stop", container_name], timeout=15)
+    async def stop_container(self, container_name: str) -> str:
+        result = await self._docker(["docker", "stop", container_name], timeout=15)
         if "WIAResult.fail" not in result and "Error" not in result:
             return f"✅ Container stopped: {container_name}"
         return result
 
-    def compose_up(self, path: str = ".") -> str:
-        return self._docker(["docker-compose", "up", "-d"], timeout=120)
+    async def compose_up(self, path: str = ".") -> str:
+        return await self._docker(["docker-compose", "up", "-d"], timeout=120)
 
-    def list_images(self) -> str:
-        return self._docker(["docker", "images", "--format", 
+    async def list_images(self) -> str:
+        return await self._docker(["docker", "images", "--format", 
             "table {{.Repository}}\t{{.Tag}}\t{{.Size}}"])
 
-    def container_logs(self, container_name: str, lines: int = 50) -> str:
-        return self._docker(["docker", "logs", "--tail", str(lines), container_name])
+    async def container_logs(self, container_name: str, lines: int = 50) -> str:
+        return await self._docker(["docker", "logs", "--tail", str(lines), container_name])
 
     def extract_args_from_task(self, task: str, tool_name: str) -> dict:
         if tool_name in ("start_container", "stop_container", "container_logs"):

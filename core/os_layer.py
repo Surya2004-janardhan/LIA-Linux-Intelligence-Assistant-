@@ -241,6 +241,11 @@ class OSLayer:
             if os.path.exists("/usr/bin/pacman"): return "pacman"
         return "unknown"
     
+    def get_ping_cmd(self, host: str, count: int = 4) -> List[str]:
+        if self.is_windows:
+            return ["ping", "-n", str(count), host]
+        return ["ping", "-c", str(count), host]
+    
     def get_service_cmd(self, service: str, action: str) -> Optional[List[str]]:
         if self.is_windows:
             # Map systemctl actions to sc.exe

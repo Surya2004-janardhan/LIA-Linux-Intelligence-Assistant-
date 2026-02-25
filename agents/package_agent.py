@@ -44,12 +44,16 @@ class PackageAgent(WIAAgent):
             return str(WIAResult.fail(ErrorCode.INVALID_ARGS, "No package name provided"))
         
         pm = os_layer.get_package_manager()
-        if pm == "apt":
+        
+        if pm == "winget":
+            # winget install <id> --silent --accept-package-agreements --accept-source-agreements
+            cmd = ["winget", "install", package_name, "--silent", "--accept-package-agreements", "--accept-source-agreements"]
+        elif pm == "choco":
+            cmd = ["choco", "install", package_name, "-y"]
+        elif pm == "apt":
             cmd = ["sudo", "DEBIAN_FRONTEND=noninteractive", "apt-get", "install", "-y", package_name]
         elif pm == "pacman":
             cmd = ["sudo", "pacman", "-S", "--noconfirm", package_name]
-        elif pm == "dnf":
-            cmd = ["sudo", "dnf", "install", "-y", package_name]
         elif pm == "brew" or (os_layer.is_mac and os.path.exists("/usr/local/bin/brew")):
             cmd = ["brew", "install", package_name]
         else:
@@ -73,20 +77,20 @@ class PackageAgent(WIAAgent):
         return str(WIAResult.fail(ErrorCode.COMMAND_NOT_FOUND, result["stderr"]))
 
     async def update_system(self) -> str:
-        if os_layer.is_windows:
-            return "System package updates not supported on Windows via CLI."
-        
         pm = os_layer.get_package_manager()
-        if pm == "apt":
-            cmd = ["sudo", "apt-get", "update"]
-        elif pm == "dnf":
-            cmd = ["sudo", "dnf", "check-update"]
-        elif pm == "brew":
-            cmd = ["brew", "update"]
-        else:
-            return f"Unknown package manager: {pm}"
         
-        result = await os_layer.run_command(cmd, timeout=120)
+        if pm == "winget":
+            cmd = ["winget", "upgrade", "--all", "--silent", "--accept-package-agreements"]
+        elif pm == "choco":
+            cmd = ["choco", "upgrade", "all", "-y"]
+        elif pm == "apt":
+            cmd = ["sudo", "apt-get", "update", "&&", "sudo", "apt-get", "upgrade", "-y"]
+        elif pm == "brew":
+            cmd = ["brew", "update", "&&", "brew", "upgrade"]
+        else:
+            return f"Updating not supported on current OS package manager ({pm})."
+        
+        result = await os_layer.run_command(cmd, timeout=600)
         if result["success"]:
             return f"✅ System packages updated ({pm})"
         return str(WIAResult.fail(ErrorCode.AGENT_CRASHED, result["stderr"][-300:]))

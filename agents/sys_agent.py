@@ -30,8 +30,7 @@ class SysAgent(WIAAgent):
         freq = psutil.cpu_freq()
         freq_str = f"{freq.current:.0f}MHz" if freq else "N/A"
         
-        load_avg = os_layer.get_load_avg()
-        return f"CPU: {usage}% | Cores: {count} | Freq: {freq_str} | Load: {load_avg}"
+        return f"CPU: {usage}% | Cores: {count} | Freq: {freq_str}"
 
     def check_ram(self) -> str:
         ram = psutil.virtual_memory()
@@ -53,22 +52,21 @@ class SysAgent(WIAAgent):
         return "\n".join(results) if results else "Could not read disk info."
 
     def system_health(self) -> str:
-        """Combined health check — leverages deep OS info."""
+        """Combined health check for Windows."""
         info = os_layer.get_system_summary()
         cpu = self.check_cpu()
         ram = self.check_ram()
         disk = self.check_disk()
         
-        return (f"╔══ System Health ══╗\n"
-                f"Host: {info['hostname']} ({info['kernel']})\n"
-                f"Distro: {info.get('distro', 'Unknown')}\n"
-                f"Load Avg: {info.get('load_avg', 'N/A')}\n"
+        return (f"╔══ System Health (WIA) ══╗\n"
+                f"Host: {info['hostname']} ({info['os_version']})\n"
+                f"Kernel: {info['kernel']}\n"
                 f"─────────────────────\n"
                 f"{cpu}\n{ram}\n{disk}\n"
                 f"╚════════════════════╝")
 
     def list_processes(self, count: int = 10) -> str:
-        """List top processes by CPU usage."""
+        """List top processes by CPU usage on Windows."""
         try:
             procs = []
             for p in psutil.process_iter(['pid', 'name', 'cpu_percent', 'memory_percent']):
@@ -78,7 +76,6 @@ class SysAgent(WIAAgent):
                 except (psutil.NoSuchProcess, psutil.AccessDenied):
                     continue
             
-            # Sort by CPU usage
             procs.sort(key=lambda x: x.get('cpu_percent', 0) or 0, reverse=True)
             top = procs[:count]
             
@@ -91,29 +88,45 @@ class SysAgent(WIAAgent):
             return str(WIAResult.fail(ErrorCode.AGENT_CRASHED, f"Process listing failed: {e}"))
 
     def check_logs(self, service: str = "", limit: int = 50) -> str:
-        """Reads systemd journal (Linux only)."""
-        if not os_layer.is_linux:
-            return "Log checking is only supported on Linux (via journalctl)."
+        """Reads Windows Event Logs via PowerShell."""
+        if not os_layer.is_windows:
+            return "Log checking is only supported on Windows in this build."
         
-        cmd = ["journalctl", "--no-pager", "-n", str(limit)]
+        # We use Get-WinEvent for performance, fallback to Get-EventLog
         if service:
-            cmd.extend(["-u", service])
+            ps_cmd = f"Get-WinEvent -LogName System -MaxEvents {limit} | Where-Object {{ $_.ProviderName -like '*{service}*' }}"
         else:
-            cmd.extend(["-p", "err"])  # Default to errors only if no service specified
+            ps_cmd = f"Get-WinEvent -LogName System -MaxEvents {limit} -ErrorAction SilentlyContinue"
             
-        result = os_layer.run_command(cmd, timeout=10)
+        result = asyncio.run(os_layer.run_command(ps_cmd, shell=True, timeout=10))
         if not result["success"]:
-            return f"❌ Failed to read logs: {result['stderr']}"
+            # Try fallback if Get-WinEvent fails
+            ps_cmd = f"Get-EventLog -LogName System -Newest {limit}"
+            result = asyncio.run(os_layer.run_command(ps_cmd, shell=True, timeout=10))
+            
+        if not result["success"]:
+            return f"❌ Failed to read Event Logs: {result['stderr']}"
         
-        return f"📜 System Logs ({limit} lines):\n{result['stdout']}"
+        return f"📜 Windows Event Logs ({limit} events):\n{result['stdout']}"
 
     def manage_service(self, service_name: str, action: str = "status") -> str:
+        """Manage Windows services via sc.exe or PowerShell."""
         cmd = os_layer.get_service_cmd(service_name, action)
         if cmd is None:
+            # Special handling for restart on Windows
+            if action == "restart":
+                stop_res = asyncio.run(os_layer.run_command(["sc.exe", "stop", service_name], timeout=20))
+                import time
+                time.sleep(2) # Give it a moment to stop
+                start_res = asyncio.run(os_layer.run_command(["sc.exe", "start", service_name], timeout=20))
+                if start_res["success"]:
+                    return f"Service '{service_name}' restarted successfully."
+                return f"Failed to restart service: {start_res['stderr']}"
+            
             return str(WIAResult.fail(ErrorCode.SERVICE_UNAVAILABLE, 
-                "Service management not supported on this platform"))
+                "Service action not supported on this platform"))
         
-        result = os_layer.run_command(cmd, timeout=15)
+        result = asyncio.run(os_layer.run_command(cmd, timeout=15))
         if result["success"]:
             return result["stdout"]
         return str(WIAResult.fail(
@@ -121,16 +134,16 @@ class SysAgent(WIAAgent):
             result["stderr"]
         ))
 
-    def execute(self, task: str) -> str:
+    async def execute(self, task: str) -> str:
         logger.info(f"SysAgent executing: {task}")
         # Add extract_args for check_logs
         import re
-        if "log" in task.lower():
-            match = re.search(r'(?:logs?|journal)\s+(?:for\s+|of\s+)?([a-zA-Z0-9\-_]+)', task, re.I)
+        if "log" in task.lower() or "event" in task.lower():
+            match = re.search(r'(?:logs?|events?)\s+(?:for\s+|of\s+)?([a-zA-Z0-9\-_]+)', task, re.I)
             if match:
                 service = match.group(1).strip()
                 if service not in ["check", "show", "me", "recent", "error"]:
                     return self.check_logs(service=service)
-            return self.check_logs()  # Default system errors
+            return self.check_logs()
             
-        return self.smart_execute(task)
+        return await self.smart_execute(task)
