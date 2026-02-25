@@ -18,22 +18,23 @@ class NetAgent(WIAAgent):
         self.register_tool("dns_lookup", self.dns_lookup, "Resolves a hostname to IP",
             keywords=["dns", "resolve", "lookup", "ip of"])
 
-    def ping_host(self, host: str = "google.com") -> str:
+    async def ping_host(self, host: str = "google.com") -> str:
         cmd = os_layer.get_ping_cmd(host, count=4)
-        result = os_layer.run_command(cmd, timeout=15)
+        result = await os_layer.run_command(cmd, timeout=15)
         if result["timed_out"]:
             return str(WIAResult.fail(ErrorCode.TIMEOUT, f"Ping to {host} timed out"))
         if not result["success"]:
             return str(WIAResult.fail(ErrorCode.HOST_UNREACHABLE, f"Cannot reach {host}: {result['stderr']}"))
         return f"✅ Ping {host}:\n{result['stdout']}\n({result['duration_ms']}ms total)"
 
-    def check_ports(self, target: str = "localhost") -> str:
+    async def check_ports(self, target: str = "localhost") -> str:
         # Try nmap first
-        result = os_layer.run_command(['nmap', '-F', target], timeout=30)
+        result = await os_layer.run_command(['nmap', '-F', target], timeout=30)
         if result["success"]:
             return result["stdout"]
         
         # Fallback: Python socket scan (no dependency needed)
+        # Scan common Windows ports too (e.g. 3389)
         return self._python_port_scan(target)
 
     def _python_port_scan(self, target: str) -> str:
@@ -59,18 +60,18 @@ class NetAgent(WIAAgent):
             return f"{header}\n" + "\n".join(open_ports)
         return f"No common ports open on {target}"
 
-    def check_connectivity(self) -> str:
-        """Instant internet check via socket — no subprocess, no LLM."""
+    async def check_connectivity(self) -> str:
+        """Instant internet check via socket."""
         try:
-            socket.create_connection(("8.8.8.8", 53), timeout=3)
+            await asyncio.to_thread(socket.create_connection, ("8.8.8.8", 53), timeout=3)
             return "Internet: Connected ✅"
         except OSError:
             return str(WIAResult.fail(ErrorCode.HOST_UNREACHABLE, "Internet: Disconnected ❌",
-                suggestion="Check your network connection or firewall"))
+                suggestion="Check your Windows network settings or firewall"))
 
-    def dns_lookup(self, hostname: str = "google.com") -> str:
+    async def dns_lookup(self, hostname: str = "google.com") -> str:
         try:
-            ip = socket.gethostbyname(hostname)
+            ip = await asyncio.to_thread(socket.gethostbyname, hostname)
             return f"{hostname} → {ip}"
         except socket.gaierror:
             return str(WIAResult.fail(ErrorCode.DNS_FAILURE, f"Cannot resolve: {hostname}"))
@@ -87,6 +88,6 @@ class NetAgent(WIAAgent):
             return {"hostname": match.group(1) if match else "google.com"}
         return {}
 
-    def execute(self, task: str) -> str:
+    async def execute(self, task: str) -> str:
         logger.info(f"NetAgent executing: {task}")
-        return self.smart_execute(task)
+        return await self.smart_execute(task)

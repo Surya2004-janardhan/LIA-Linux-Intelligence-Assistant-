@@ -153,12 +153,13 @@ async def async_main():
             agent_count = len(orchestrator.agents)
             fb_stats = feedback_manager.get_feedback_stats()
             _rich_print(
-                f"WIA STATUS — {info['hostname']} (Windows Intelligence Agent)\n"
+                f"WIA STATUS — {info['hostname']} (Windows Intelligence Assistant)\n"
                 f"{'─' * 35}\n"
-                f"Distro:    {info.get('distro', 'Unknown')}\n"
+                f"OS:        Windows {info.get('os_version', 'Unknown')}\n"
                 f"Kernel:    {info.get('kernel', 'Unknown')}\n"
                 f"Arch:      {info['arch']}\n"
-                f"Agents:    {agent_count} specialists\n"
+                f"Python:    {info['python']}\n"
+                f"Assistants: {agent_count} specialists\n"
                 f"Sandbox:   {'ON' if config.get('security.sandbox_enabled') else 'OFF'}\n"
                 f"Feedback:  {fb_stats['total_feedback']} ratings\n"
             )
